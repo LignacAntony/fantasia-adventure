@@ -6,8 +6,6 @@ import { ChatHistory } from "@/components/chat-history"
 import { FeatureCard } from "@/components/feature-card"
 import {
   AlertCircleIcon,
-  Crown,
-  Sparkles,
   Sword,
   Users,
   WandSparkles,
@@ -50,22 +48,20 @@ export default function DesignSystemGamePage() {
 
         <Section
           title="Choice Card"
-          description="Carte de choix : icon, title, riskLabel (riskVariant: low | medium | high), description, avatars. selected pour la bordure violette + glow."
+          description="Carte de choix : icon, title, riskLabel, riskVariant (variants Badge : yellow, green, blue, red, purple, orange), description, avatars. selected pour la bordure violette + glow."
         >
           <div className="max-w-2xl space-y-3 rounded-xl bg-slate-900 p-4">
             <ChoiceCard
-              icon={<WandSparkles className="text-green-400" />}
               title="Utiliser la magie de l'air"
               riskLabel="Risque Faible"
-              riskVariant="low"
+              riskVariant="green"
               description="Demander au Mage de canaliser un courant ascendant pour porter le groupe. (Consomme du Mana)"
               avatars={[{ initials: "BB", className: "bg-violet-600" }]}
             />
             <ChoiceCard
-              icon={<WandSparkles className="text-amber-400" />}
               title="Utiliser la magie de l'air"
               riskLabel="Risque Faible"
-              riskVariant="low"
+              riskVariant="yellow"
               description="Demander au Mage de canaliser un courant ascendant pour porter le groupe. (Consomme du Mana)"
               avatars={[{ initials: "BB", className: "bg-violet-600" }]}
               selected
@@ -95,12 +91,7 @@ export default function DesignSystemGamePage() {
           description="Un seul message : senderName, senderIcon, watermarkIcon. Contenu en blockquote serif italique."
         >
           <div className="max-w-2xl">
-            <ChatHistory
-              senderName="Maître du jeu (IA)"
-              senderIcon={<Sparkles />}
-              senderClassName="text-amber-400"
-              watermarkIcon={<Crown className="text-slate-600" />}
-            >
+            <ChatHistory senderName="Maître du jeu (IA)">
               &quot;Le vent hurle entre les parois de la faille. Devant vous,
               les restes d&apos;un pont suspendu oscillent dangereusement. Des
               ronces d&apos;un violet sombre semblent ramper le long des cordes,

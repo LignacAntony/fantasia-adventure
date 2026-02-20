@@ -1,28 +1,35 @@
 "use client"
 
 import * as React from "react"
+import { Crown, Sparkles } from "lucide-react"
 
 import { cn } from "@/lib/utils"
+
+const defaultWatermarkIcon = <Crown className="text-slate-600" />
 
 export interface ChatHistoryProps extends React.ComponentProps<"div"> {
   senderName: React.ReactNode
   senderIcon?: React.ReactNode
   senderClassName?: string
   children: React.ReactNode
-  watermarkIcon?: React.ReactNode
+  watermarkIcon?: React.ReactNode | null
   watermarkClassName?: string
 }
 
 function ChatHistory({
   senderName,
   senderIcon,
-  senderClassName = "text-amber-400",
+  senderClassName = "text-theme-yellow",
   children,
-  watermarkIcon,
+  watermarkIcon = defaultWatermarkIcon,
   watermarkClassName,
   className,
   ...props
 }: ChatHistoryProps) {
+  const displayIcon = senderIcon ?? <Sparkles className="size-4" />
+  const displayWatermark =
+    watermarkIcon === undefined ? defaultWatermarkIcon : watermarkIcon
+
   return (
     <div
       role="article"
@@ -32,7 +39,7 @@ function ChatHistory({
       )}
       {...props}
     >
-      {watermarkIcon && (
+      {displayWatermark != null && (
         <div
           className={cn(
             "pointer-events-none absolute right-4 top-4 size-16 opacity-[0.08] [&>svg]:size-full",
@@ -40,19 +47,17 @@ function ChatHistory({
           )}
           aria-hidden
         >
-          {watermarkIcon}
+          {displayWatermark}
         </div>
       )}
 
       <div className="relative flex items-center gap-2">
-        {senderIcon && (
-          <span
-            className={cn("flex shrink-0 [&>svg]:size-4", senderClassName)}
-            aria-hidden
-          >
-            {senderIcon}
-          </span>
-        )}
+        <span
+          className={cn("flex shrink-0 [&>svg]:size-4", senderClassName)}
+          aria-hidden
+        >
+          {displayIcon}
+        </span>
         <span
           className={cn(
             "text-xs font-semibold uppercase tracking-wide",

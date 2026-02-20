@@ -3,13 +3,19 @@
 import * as React from "react"
 
 import { cn } from "@/lib/utils"
+import { Badge } from "@/components/ui/badge"
+import type { VariantProps } from "class-variance-authority"
+import { badgeVariants } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
+
+export type CharacterCardRoleTagVariant = VariantProps<typeof badgeVariants>["variant"]
 
 export interface CharacterCardProps
   extends Omit<React.ComponentProps<"article">, "title"> {
   icon?: React.ReactNode
   iconClassName?: string
   roleTag?: React.ReactNode
+  roleTagVariant?: CharacterCardRoleTagVariant
   roleTagClassName?: string
   title: React.ReactNode
   description?: React.ReactNode
@@ -21,6 +27,7 @@ function CharacterCard({
   icon,
   iconClassName,
   roleTag,
+  roleTagVariant = "yellow",
   roleTagClassName,
   title,
   description,
@@ -49,14 +56,12 @@ function CharacterCard({
           </div>
         )}
         {roleTag != null && roleTag !== "" && (
-          <span
-            className={cn(
-              "inline-flex rounded-full border-2 border-amber-500/80 bg-slate-800/90 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white",
-              roleTagClassName
-            )}
+          <Badge
+            variant={roleTagVariant}
+            className={cn("uppercase tracking-wide", roleTagClassName)}
           >
             {roleTag}
-          </span>
+          </Badge>
         )}
       </div>
 

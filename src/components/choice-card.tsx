@@ -1,19 +1,18 @@
 "use client"
 
 import * as React from "react"
+import { WandSparkles } from "lucide-react"
 
 import { cn } from "@/lib/utils"
+import { Badge } from "@/components/ui/badge"
+import type { VariantProps } from "class-variance-authority"
+import { badgeVariants } from "@/components/ui/badge"
 
-export type ChoiceCardRiskVariant = "low" | "medium" | "high"
+export type ChoiceCardRiskVariant = VariantProps<typeof badgeVariants>["variant"]
 
-const riskBadgeClasses: Record<ChoiceCardRiskVariant, string> = {
-  low: "bg-emerald-700/90 text-white border-emerald-600",
-  medium: "bg-amber-700/90 text-white border-amber-600",
-  high: "bg-red-700/90 text-white border-red-600",
-}
-
-export interface ChoiceCardProps extends React.ComponentProps<"div"> {
+export interface ChoiceCardProps extends Omit<React.ComponentProps<"div">, "title"> {
   icon?: React.ReactNode
+  iconClassName?: string
   title: React.ReactNode
   riskLabel?: string
   riskVariant?: ChoiceCardRiskVariant
@@ -24,15 +23,18 @@ export interface ChoiceCardProps extends React.ComponentProps<"div"> {
 
 function ChoiceCard({
   icon,
+  iconClassName = "text-theme-yellow",
   title,
   riskLabel,
-  riskVariant = "medium",
+  riskVariant = "green",
   description,
   avatars,
   selected = false,
   className,
   ...props
 }: ChoiceCardProps) {
+  const displayIcon = icon ?? <WandSparkles className="size-6" />
+
   return (
     <div
       role="article"
@@ -45,14 +47,15 @@ function ChoiceCard({
       )}
       {...props}
     >
-      {icon != null && (
-        <div
-          className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-slate-700 text-white [&>svg]:size-6"
-          aria-hidden
-        >
-          {icon}
-        </div>
-      )}
+      <div
+        className={cn(
+          "flex size-12 shrink-0 items-center justify-center rounded-xl bg-slate-700 [&>svg]:size-6",
+          iconClassName
+        )}
+        aria-hidden
+      >
+        {displayIcon}
+      </div>
 
       <div className="min-w-0 flex-1 space-y-1">
         <div className="flex flex-wrap items-center gap-2">
@@ -60,14 +63,9 @@ function ChoiceCard({
             {title}
           </span>
           {riskLabel != null && riskLabel !== "" && (
-            <span
-              className={cn(
-                "rounded-md border px-2 py-0.5 text-xs font-medium uppercase",
-                riskBadgeClasses[riskVariant]
-              )}
-            >
+            <Badge variant={riskVariant}  className="uppercase">
               {riskLabel}
-            </span>
+            </Badge>
           )}
         </div>
         {description != null && (
