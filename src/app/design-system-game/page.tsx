@@ -1,20 +1,20 @@
-"use client"
+"use client";
 
-import { BadgeClasse } from "@/components/badge-classe"
-import { CharacterCard } from "@/components/character-card"
-import { ChoiceCard } from "@/components/choice-card"
-import { ChatHistory } from "@/components/chat-history"
-import { FeatureCard } from "@/components/feature-card"
-import { AlertCircleIcon, Users, WandSparkles } from "lucide-react"
+import { BadgeClasse } from "@/components/badge-classe";
+import { CharacterCard } from "@/components/character-card";
+import { ChoiceCard } from "@/components/choice-card";
+import { ChatHistory } from "@/components/chat-history";
+import { FeatureCard } from "@/components/feature-card";
+import { AlertCircleIcon, Users, WandSparkles } from "lucide-react";
 
 function Section({
   title,
   description,
   children,
 }: {
-  title: string
-  description?: string
-  children: React.ReactNode
+  title: string;
+  description?: string;
+  children: React.ReactNode;
 }) {
   return (
     <section className="space-y-4">
@@ -26,7 +26,7 @@ function Section({
       </div>
       <div className="rounded-lg border bg-card p-6">{children}</div>
     </section>
-  )
+  );
 }
 
 export default function DesignSystemGamePage() {
@@ -106,8 +106,8 @@ export default function DesignSystemGamePage() {
               les restes d&apos;un pont suspendu oscillent dangereusement. Des
               ronces d&apos;un violet sombre semblent ramper le long des cordes,
               comme si elles attendaient votre passage. L&apos;énergie ici est
-              instable ; un faux pas pourrait vous précipiter dans les profondeurs
-              éthérées.&quot;
+              instable ; un faux pas pourrait vous précipiter dans les
+              profondeurs éthérées.&quot;
             </ChatHistory>
           </div>
         </Section>
@@ -140,5 +140,5 @@ export default function DesignSystemGamePage() {
         </Section>
       </div>
     </div>
-  )
+  );
 }

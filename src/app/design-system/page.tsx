@@ -1,14 +1,15 @@
-"use client"
+"use client";
 
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
-  Alert,
-  AlertDescription,
-  AlertTitle,
-} from "@/components/ui/alert"
-import { Avatar, AvatarFallback, AvatarGroup, AvatarImage } from "@/components/ui/avatar"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { ButtonGroup } from "@/components/ui/button-group"
+  Avatar,
+  AvatarFallback,
+  AvatarGroup,
+  AvatarImage,
+} from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { ButtonGroup } from "@/components/ui/button-group";
 import {
   Card,
   CardContent,
@@ -16,8 +17,8 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card"
-import { Checkbox } from "@/components/ui/checkbox"
+} from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogClose,
@@ -27,7 +28,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog"
+} from "@/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -35,31 +36,31 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+} from "@/components/ui/dropdown-menu";
 import {
   HoverCard,
   HoverCardContent,
   HoverCardTrigger,
-} from "@/components/ui/hover-card"
-import { Input } from "@/components/ui/input"
+} from "@/components/ui/hover-card";
+import { Input } from "@/components/ui/input";
 import {
   InputGroup,
   InputGroupAddon,
   InputGroupButton,
   InputGroupInput,
-} from "@/components/ui/input-group"
-import { Label } from "@/components/ui/label"
-import { Progress } from "@/components/ui/progress"
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { ScrollArea } from "@/components/ui/scroll-area"
+} from "@/components/ui/input-group";
+import { Label } from "@/components/ui/label";
+import { Progress } from "@/components/ui/progress";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
-import { Separator } from "@/components/ui/separator"
+} from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
 import {
   Sheet,
   SheetContent,
@@ -67,21 +68,21 @@ import {
   SheetHeader,
   SheetTitle,
   SheetTrigger,
-} from "@/components/ui/sheet"
-import { Skeleton } from "@/components/ui/skeleton"
-import { Spinner } from "@/components/ui/spinner"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Textarea } from "@/components/ui/textarea"
-import { AlertCircleIcon } from "lucide-react"
+} from "@/components/ui/sheet";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Spinner } from "@/components/ui/spinner";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
+import { AlertCircleIcon } from "lucide-react";
 
 function Section({
   title,
   description,
   children,
 }: {
-  title: string
-  description?: string
-  children: React.ReactNode
+  title: string;
+  description?: string;
+  children: React.ReactNode;
 }) {
   return (
     <section className="space-y-4">
@@ -93,10 +94,14 @@ function Section({
       </div>
       <div className="rounded-lg border bg-card p-6">{children}</div>
     </section>
-  )
+  );
 }
 
-function VariableGrid({ items }: { items: { name: string; usage?: string }[] }) {
+function VariableGrid({
+  items,
+}: {
+  items: { name: string; usage?: string }[];
+}) {
   return (
     <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
       {items.map(({ name, usage }) => (
@@ -106,12 +111,14 @@ function VariableGrid({ items }: { items: { name: string; usage?: string }[] }) 
         >
           <span className="text-foreground">{name}</span>
           {usage && (
-            <span className="text-muted-foreground ml-1 text-xs">→ {usage}</span>
+            <span className="text-muted-foreground ml-1 text-xs">
+              → {usage}
+            </span>
           )}
         </div>
       ))}
     </div>
-  )
+  );
 }
 
 export default function DesignSystemPage() {
@@ -119,9 +126,7 @@ export default function DesignSystemPage() {
     <div className="min-h-screen bg-background">
       <div className="mx-auto max-w-5xl space-y-16 px-6 py-12">
         <header>
-          <h1 className="text-4xl font-bold tracking-tight">
-            Design System
-          </h1>
+          <h1 className="text-4xl font-bold tracking-tight">Design System</h1>
           <p className="text-muted-foreground mt-2 text-lg">
             Composants shadcn/ui et variables CSS du thème.
           </p>
@@ -142,15 +147,30 @@ export default function DesignSystemPage() {
                   { name: "--card", usage: "bg-card" },
                   { name: "--card-foreground", usage: "text-card-foreground" },
                   { name: "--popover", usage: "bg-popover" },
-                  { name: "--popover-foreground", usage: "text-popover-foreground" },
+                  {
+                    name: "--popover-foreground",
+                    usage: "text-popover-foreground",
+                  },
                   { name: "--primary", usage: "bg-primary" },
-                  { name: "--primary-foreground", usage: "text-primary-foreground" },
+                  {
+                    name: "--primary-foreground",
+                    usage: "text-primary-foreground",
+                  },
                   { name: "--secondary", usage: "bg-secondary" },
-                  { name: "--secondary-foreground", usage: "text-secondary-foreground" },
+                  {
+                    name: "--secondary-foreground",
+                    usage: "text-secondary-foreground",
+                  },
                   { name: "--muted", usage: "bg-muted" },
-                  { name: "--muted-foreground", usage: "text-muted-foreground" },
+                  {
+                    name: "--muted-foreground",
+                    usage: "text-muted-foreground",
+                  },
                   { name: "--accent", usage: "bg-accent" },
-                  { name: "--accent-foreground", usage: "text-accent-foreground" },
+                  {
+                    name: "--accent-foreground",
+                    usage: "text-accent-foreground",
+                  },
                   { name: "--destructive", usage: "bg-destructive" },
                   { name: "--border", usage: "border-border" },
                   { name: "--input", usage: "champ formulaire" },
@@ -193,7 +213,13 @@ export default function DesignSystemPage() {
         </Section>
 
         {/* Buttons */}
-        <a className="text-4xl font-bold tracking-tight text-red-800 mb-4 block"  target="_blank" href="https://lucide.dev/icons/">--- Lucide Icons ---</a>
+        <a
+          className="text-4xl font-bold tracking-tight text-red-800 mb-4 block"
+          target="_blank"
+          href="https://lucide.dev/icons/"
+        >
+          --- Lucide Icons ---
+        </a>
         <Section
           title="Button"
           description="variant: default | destructive | outline | secondary | ghost | link. size: default | xs | sm | lg | icon | icon-xs | icon-sm | icon-lg"
@@ -222,7 +248,8 @@ export default function DesignSystemPage() {
             <Button disabled>Disabled</Button>
           </div>
           <p className="text-muted-foreground mt-6 text-sm font-medium">
-            Variantes thème (variant: yellow | green | blue | red | purple | orange)
+            Variantes thème (variant: yellow | green | blue | red | purple |
+            orange)
           </p>
           <div className="mt-2 flex flex-wrap gap-2">
             <Button variant="yellow">Yellow</Button>
@@ -233,7 +260,6 @@ export default function DesignSystemPage() {
             <Button variant="orange">Orange</Button>
           </div>
         </Section>
-
 
         {/* Badge */}
         <Section
@@ -254,7 +280,8 @@ export default function DesignSystemPage() {
             <Badge variant="outline">Beta</Badge>
           </div>
           <p className="text-muted-foreground mt-6 text-sm font-medium">
-            Variantes thème (variant: yellow | green | blue | red | purple | orange)
+            Variantes thème (variant: yellow | green | blue | red | purple |
+            orange)
           </p>
           <div className="mt-2 flex flex-wrap gap-2">
             <Badge variant="yellow">Yellow</Badge>
@@ -267,7 +294,10 @@ export default function DesignSystemPage() {
         </Section>
 
         {/* Button Group */}
-        <Section title="Button Group" description="orientation: horizontal | vertical">
+        <Section
+          title="Button Group"
+          description="orientation: horizontal | vertical"
+        >
           <ButtonGroup>
             <Button variant="outline">One</Button>
             <Button variant="outline">Two</Button>
@@ -283,7 +313,10 @@ export default function DesignSystemPage() {
         </Section>
 
         {/* Input */}
-        <Section title="Input" description="Champ texte avec états focus, disabled, aria-invalid">
+        <Section
+          title="Input"
+          description="Champ texte avec états focus, disabled, aria-invalid"
+        >
           <div className="grid gap-4 sm:max-w-sm">
             <div className="space-y-2">
               <Label htmlFor="input-demo">Label</Label>
@@ -317,7 +350,10 @@ export default function DesignSystemPage() {
 
         {/* Textarea */}
         <Section title="Textarea">
-          <Textarea placeholder="Écrivez votre message..." className="max-w-md" />
+          <Textarea
+            placeholder="Écrivez votre message..."
+            className="max-w-md"
+          />
         </Section>
 
         {/* Label */}
@@ -373,7 +409,10 @@ export default function DesignSystemPage() {
         </Section>
 
         {/* Card */}
-        <Section title="Card" description="Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter, CardAction">
+        <Section
+          title="Card"
+          description="Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter, CardAction"
+        >
           <Card className="max-w-sm">
             <CardHeader>
               <CardTitle>Titre de la carte</CardTitle>
@@ -384,7 +423,9 @@ export default function DesignSystemPage() {
             </CardContent>
             <CardFooter className="flex gap-2">
               <Button size="sm">Action</Button>
-              <Button size="sm" variant="outline">Annuler</Button>
+              <Button size="sm" variant="outline">
+                Annuler
+              </Button>
             </CardFooter>
           </Card>
         </Section>
@@ -506,7 +547,10 @@ export default function DesignSystemPage() {
         </Section>
 
         {/* Separator */}
-        <Section title="Separator" description="orientation: horizontal | vertical">
+        <Section
+          title="Separator"
+          description="orientation: horizontal | vertical"
+        >
           <div className="space-y-2">
             <p className="text-sm">Au-dessus</p>
             <Separator />
@@ -524,10 +568,10 @@ export default function DesignSystemPage() {
           <ScrollArea className="h-32 w-48 rounded-md border p-4">
             <p className="text-sm">
               Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do
-              eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim
-              ad minim veniam, quis nostrud exercitation ullamco laboris. Duis
-              aute irure dolor in reprehenderit in voluptate velit esse cillum
-              dolore eu fugiat nulla pariatur.
+              eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut
+              enim ad minim veniam, quis nostrud exercitation ullamco laboris.
+              Duis aute irure dolor in reprehenderit in voluptate velit esse
+              cillum dolore eu fugiat nulla pariatur.
             </p>
           </ScrollArea>
         </Section>
@@ -568,9 +612,7 @@ export default function DesignSystemPage() {
             <SheetContent side="right">
               <SheetHeader>
                 <SheetTitle>Titre</SheetTitle>
-                <SheetDescription>
-                  Description du panneau.
-                </SheetDescription>
+                <SheetDescription>Description du panneau.</SheetDescription>
               </SheetHeader>
               <p className="text-muted-foreground mt-4 text-sm">
                 Contenu du sheet. Fermez avec le bouton X ou en cliquant à
@@ -591,7 +633,9 @@ export default function DesignSystemPage() {
               <DropdownMenuSeparator />
               <DropdownMenuItem>Profil</DropdownMenuItem>
               <DropdownMenuItem>Paramètres</DropdownMenuItem>
-              <DropdownMenuItem variant="destructive">Déconnexion</DropdownMenuItem>
+              <DropdownMenuItem variant="destructive">
+                Déconnexion
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </Section>
@@ -604,13 +648,13 @@ export default function DesignSystemPage() {
             </HoverCardTrigger>
             <HoverCardContent>
               <p className="text-sm">
-                Contenu de la hover card. S&apos;affiche au survol.
-                align / sideOffset configurables.
+                Contenu de la hover card. S&apos;affiche au survol. align /
+                sideOffset configurables.
               </p>
             </HoverCardContent>
           </HoverCard>
         </Section>
       </div>
     </div>
-  )
+  );
 }

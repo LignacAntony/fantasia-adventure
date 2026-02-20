@@ -1,29 +1,33 @@
-"use client"
+"use client";
 
-import * as React from "react"
+import * as React from "react";
 
-import { cn } from "@/lib/utils"
-import { BadgeClasse } from "@/components/badge-classe"
-import type { BadgeClasseVariant } from "@/components/badge-classe"
-import { Badge } from "@/components/ui/badge"
-import type { VariantProps } from "class-variance-authority"
-import { badgeVariants } from "@/components/ui/badge"
-import { Separator } from "@/components/ui/separator"
+import { cn } from "@/lib/utils";
+import { BadgeClasse } from "@/components/badge-classe";
+import type { BadgeClasseVariant } from "@/components/badge-classe";
+import { Badge } from "@/components/ui/badge";
+import type { VariantProps } from "class-variance-authority";
+import { badgeVariants } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
 
-export type CharacterCardRoleTagVariant = VariantProps<typeof badgeVariants>["variant"]
+export type CharacterCardRoleTagVariant = VariantProps<
+  typeof badgeVariants
+>["variant"];
 
-export interface CharacterCardProps
-  extends Omit<React.ComponentProps<"article">, "title"> {
-  icon?: React.ReactNode
-  iconClassName?: string
-  classe?: BadgeClasseVariant
-  roleTag?: React.ReactNode
-  roleTagVariant?: CharacterCardRoleTagVariant
-  roleTagClassName?: string
-  title: React.ReactNode
-  description?: React.ReactNode
-  advantages?: string[]
-  weaknesses?: string[]
+export interface CharacterCardProps extends Omit<
+  React.ComponentProps<"article">,
+  "title"
+> {
+  icon?: React.ReactNode;
+  iconClassName?: string;
+  classe?: BadgeClasseVariant;
+  roleTag?: React.ReactNode;
+  roleTagVariant?: CharacterCardRoleTagVariant;
+  roleTagClassName?: string;
+  title: React.ReactNode;
+  description?: React.ReactNode;
+  advantages?: string[];
+  weaknesses?: string[];
 }
 
 function CharacterCard({
@@ -40,13 +44,13 @@ function CharacterCard({
   className,
   ...props
 }: CharacterCardProps) {
-  const showIconArea = classe != null || icon != null
+  const showIconArea = classe != null || icon != null;
 
   return (
     <article
       className={cn(
         "flex flex-col gap-4 rounded-2xl border border-white/10 bg-[#1e293b] p-6 text-left shadow-sm",
-        className
+        className,
       )}
       {...props}
     >
@@ -58,7 +62,7 @@ function CharacterCard({
             <div
               className={cn(
                 "flex size-12 shrink-0 items-center justify-center rounded-xl border-2 border-sky-400/60 bg-slate-800/80 text-sky-400 [&>svg]:size-6",
-                iconClassName
+                iconClassName,
               )}
             >
               {icon}
@@ -119,7 +123,7 @@ function CharacterCard({
         </div>
       </div>
     </article>
-  )
+  );
 }
 
-export { CharacterCard }
+export { CharacterCard };

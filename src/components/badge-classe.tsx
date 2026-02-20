@@ -1,6 +1,6 @@
-"use client"
+"use client";
 
-import * as React from "react"
+import * as React from "react";
 import {
   BowArrow,
   Slice,
@@ -8,9 +8,9 @@ import {
   Skull,
   Sword,
   WandSparkles,
-} from "lucide-react"
+} from "lucide-react";
 
-import { cn } from "@/lib/utils"
+import { cn } from "@/lib/utils";
 
 const variantConfig = {
   sword: {
@@ -43,20 +43,16 @@ const variantConfig = {
     className:
       "border-theme-orange/60 bg-slate-800/80 text-theme-orange [&>svg]:size-6",
   },
-} as const
+} as const;
 
-export type BadgeClasseVariant = keyof typeof variantConfig
+export type BadgeClasseVariant = keyof typeof variantConfig;
 
 export interface BadgeClasseProps extends React.ComponentProps<"div"> {
-  variant: BadgeClasseVariant
+  variant: BadgeClasseVariant;
 }
 
-function BadgeClasse({
-  variant,
-  className,
-  ...props
-}: BadgeClasseProps) {
-  const { Icon, className: variantClassName } = variantConfig[variant]
+function BadgeClasse({ variant, className, ...props }: BadgeClasseProps) {
+  const { Icon, className: variantClassName } = variantConfig[variant];
 
   return (
     <div
@@ -65,13 +61,13 @@ function BadgeClasse({
       className={cn(
         "flex size-12 shrink-0 items-center justify-center rounded-xl border-2",
         variantClassName,
-        className
+        className,
       )}
       {...props}
     >
       <Icon className="size-6" />
     </div>
-  )
+  );
 }
 
-export { BadgeClasse }
+export { BadgeClasse };

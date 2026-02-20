@@ -1,14 +1,16 @@
-import * as React from "react"
+import * as React from "react";
 
-import { cn } from "@/lib/utils"
+import { cn } from "@/lib/utils";
 
-export interface FeatureCardProps
-  extends Omit<React.ComponentProps<"div">, "title"> {
-  icon?: React.ReactNode
-  iconClassName?: string
-  title: React.ReactNode
-  description?: React.ReactNode
-  variant?: "default" | "dark"
+export interface FeatureCardProps extends Omit<
+  React.ComponentProps<"div">,
+  "title"
+> {
+  icon?: React.ReactNode;
+  iconClassName?: string;
+  title: React.ReactNode;
+  description?: React.ReactNode;
+  variant?: "default" | "dark";
 }
 
 function FeatureCard({
@@ -21,7 +23,7 @@ function FeatureCard({
   ...props
 }: FeatureCardProps) {
   const defaultIconColor =
-    variant === "default" ? "text-primary" : "text-[#a78bfa]"
+    variant === "default" ? "text-primary" : "text-[#a78bfa]";
 
   return (
     <div
@@ -32,7 +34,7 @@ function FeatureCard({
           "bg-card text-card-foreground border-border shadow-sm",
         variant === "dark" &&
           "border-white/10 bg-[#1a1a2e] text-white shadow-[0_0_0_1px_rgba(255,255,255,0.05)]",
-        className
+        className,
       )}
       {...props}
     >
@@ -40,7 +42,7 @@ function FeatureCard({
         <div
           className={cn(
             "flex size-10 items-center justify-center [&>svg]:size-6",
-            iconClassName ?? defaultIconColor
+            iconClassName ?? defaultIconColor,
           )}
         >
           {icon}
@@ -51,7 +53,7 @@ function FeatureCard({
           className={cn(
             "font-semibold leading-tight",
             variant === "default" && "text-card-foreground",
-            variant === "dark" && "text-white"
+            variant === "dark" && "text-white",
           )}
         >
           {title}
@@ -61,7 +63,7 @@ function FeatureCard({
             className={cn(
               "text-sm leading-relaxed",
               variant === "default" && "text-muted-foreground",
-              variant === "dark" && "text-white/80"
+              variant === "dark" && "text-white/80",
             )}
           >
             {description}
@@ -69,7 +71,7 @@ function FeatureCard({
         )}
       </div>
     </div>
-  )
+  );
 }
 
-export { FeatureCard }
+export { FeatureCard };

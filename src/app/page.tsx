@@ -1,7 +1,13 @@
 import { Button } from "@/components/ui/button";
 import Image from "next/image";
 import { Input } from "@/components/ui/input";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 
 export default function Home() {
   return (
@@ -20,7 +26,7 @@ export default function Home() {
             To get started, edit the page.tsx file.
           </h1>
           <Button>Click me</Button>
-          <Input type="text" placeholder="Enter your name" /> 
+          <Input type="text" placeholder="Enter your name" />
           <Dialog>
             <DialogTrigger>
               <Button>Open Dialog</Button>
