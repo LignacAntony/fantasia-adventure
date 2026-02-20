@@ -30,6 +30,10 @@
     // "noPropertyAccessFromIndexSignature": true,
 
     // Recommended Options
+    "paths": {
+      "@/*": ["./src/*"]
+    },
+
     "strict": true,
     "verbatimModuleSyntax": true,
     "isolatedModules": true,
@@ -37,6 +41,6 @@
     "moduleDetection": "force",
     "skipLibCheck": true
   },
-  "include": ["**/*.ts"],
+  "include": ["**/*.ts", "vitest.config.js"],
   "exclude": ["node_modules", "dist"]
 }
