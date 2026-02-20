@@ -1,7 +1,9 @@
 "use client"
 
+import { CharacterCard } from "@/components/character-card"
+import { ChatHistory } from "@/components/chat-history"
 import { FeatureCard } from "@/components/feature-card"
-import { AlertCircleIcon, Users } from "lucide-react"
+import { AlertCircleIcon, Crown, Sparkles, Sword, Users } from "lucide-react"
 
 function Section({
   title,
@@ -37,6 +39,44 @@ export default function DesignSystemGamePage() {
             Composants et patterns pour le jeu.
           </p>
         </header>
+
+        <Section
+          title="Character Card"
+          description="Carte personnage : icon, roleTag, title, description, advantages (vert), weaknesses (rouge). iconClassName / roleTagClassName pour personnaliser."
+        >
+          <div className="flex flex-wrap gap-4">
+            <CharacterCard
+              icon={<Sword className="text-sky-400" />}
+              roleTag="TANK / DPS"
+              title="Guerrier humain"
+              description="Un combattant polyvalent capable de s'adapter à toutes les situations de combat."
+              advantages={["Maîtrise", "Tactique"]}
+              weaknesses={["Vulnérable à la magie"]}
+              className="min-w-[320px] max-w-[380px]"
+            />
+          </div>
+        </Section>
+
+        <Section
+          title="Chat History"
+          description="Un seul message : senderName, senderIcon, watermarkIcon. Contenu en blockquote serif italique."
+        >
+          <div className="max-w-2xl">
+            <ChatHistory
+              senderName="Maître du jeu (IA)"
+              senderIcon={<Sparkles />}
+              senderClassName="text-amber-400"
+              watermarkIcon={<Crown className="text-slate-600" />}
+            >
+              &quot;Le vent hurle entre les parois de la faille. Devant vous,
+              les restes d&apos;un pont suspendu oscillent dangereusement. Des
+              ronces d&apos;un violet sombre semblent ramper le long des cordes,
+              comme si elles attendaient votre passage. L&apos;énergie ici est
+              instable ; un faux pas pourrait vous précipiter dans les profondeurs
+              éthérées.&quot;
+            </ChatHistory>
+          </div>
+        </Section>
 
         <Section
           title="Feature Card"

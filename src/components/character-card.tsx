@@ -1,0 +1,111 @@
+"use client"
+
+import * as React from "react"
+
+import { cn } from "@/lib/utils"
+import { Separator } from "@/components/ui/separator"
+
+export interface CharacterCardProps
+  extends Omit<React.ComponentProps<"article">, "title"> {
+  icon?: React.ReactNode
+  iconClassName?: string
+  roleTag?: React.ReactNode
+  roleTagClassName?: string
+  title: React.ReactNode
+  description?: React.ReactNode
+  advantages?: string[]
+  weaknesses?: string[]
+}
+
+function CharacterCard({
+  icon,
+  iconClassName,
+  roleTag,
+  roleTagClassName,
+  title,
+  description,
+  advantages = [],
+  weaknesses = [],
+  className,
+  ...props
+}: CharacterCardProps) {
+  return (
+    <article
+      className={cn(
+        "flex flex-col gap-4 rounded-2xl border border-white/10 bg-[#1e293b] p-6 text-left shadow-sm",
+        className
+      )}
+      {...props}
+    >
+      <div className="flex items-start gap-3">
+        {icon && (
+          <div
+            className={cn(
+              "flex size-12 shrink-0 items-center justify-center rounded-xl border-2 border-sky-400/60 bg-slate-800/80 text-sky-400 [&>svg]:size-6",
+              iconClassName
+            )}
+          >
+            {icon}
+          </div>
+        )}
+        {roleTag != null && roleTag !== "" && (
+          <span
+            className={cn(
+              "inline-flex rounded-full border-2 border-amber-500/80 bg-slate-800/90 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white",
+              roleTagClassName
+            )}
+          >
+            {roleTag}
+          </span>
+        )}
+      </div>
+
+      <h3 className="text-2xl font-bold uppercase leading-tight text-white">
+        {title}
+      </h3>
+
+      {description && (
+        <p className="text-sm leading-relaxed text-slate-400 line-clamp-3">
+          {description}
+        </p>
+      )}
+
+      <Separator className="bg-white/10" />
+
+      <div className="grid grid-cols-2 gap-6">
+        <div className="space-y-2">
+          <p className="text-xs font-medium uppercase tracking-wider text-slate-500">
+            Avantage
+          </p>
+          <ul className="space-y-1">
+            {advantages.map((item, i) => (
+              <li
+                key={i}
+                className="text-sm font-semibold uppercase text-emerald-500"
+              >
+                {item}
+              </li>
+            ))}
+          </ul>
+        </div>
+        <div className="space-y-2">
+          <p className="text-xs font-medium uppercase tracking-wider text-slate-500">
+            Faiblesse
+          </p>
+          <ul className="space-y-1">
+            {weaknesses.map((item, i) => (
+              <li
+                key={i}
+                className="text-sm font-semibold uppercase text-red-500"
+              >
+                {item}
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+    </article>
+  )
+}
+
+export { CharacterCard }
