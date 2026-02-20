@@ -1,15 +1,11 @@
 "use client"
 
+import { BadgeClasse } from "@/components/badge-classe"
 import { CharacterCard } from "@/components/character-card"
 import { ChoiceCard } from "@/components/choice-card"
 import { ChatHistory } from "@/components/chat-history"
 import { FeatureCard } from "@/components/feature-card"
-import {
-  AlertCircleIcon,
-  Sword,
-  Users,
-  WandSparkles,
-} from "lucide-react"
+import { AlertCircleIcon, Users, WandSparkles } from "lucide-react"
 
 function Section({
   title,
@@ -47,6 +43,20 @@ export default function DesignSystemGamePage() {
         </header>
 
         <Section
+          title="Badge Classe"
+          description="Icône de classe dans un badge (style character-card) : variant sword (bleu), bow (vert), skull (rouge), shield (jaune), wand (violet), slice (orange). Couleurs theme-* du thème."
+        >
+          <div className="flex flex-wrap items-center gap-4 rounded-xl bg-slate-900 p-4">
+            <BadgeClasse variant="sword" />
+            <BadgeClasse variant="bow" />
+            <BadgeClasse variant="skull" />
+            <BadgeClasse variant="shield" />
+            <BadgeClasse variant="wand" />
+            <BadgeClasse variant="slice" />
+          </div>
+        </Section>
+
+        <Section
           title="Choice Card"
           description="Carte de choix : icon, title, riskLabel, riskVariant (variants Badge : yellow, green, blue, red, purple, orange), description, avatars. selected pour la bordure violette + glow."
         >
@@ -71,11 +81,11 @@ export default function DesignSystemGamePage() {
 
         <Section
           title="Character Card"
-          description="Carte personnage : icon, roleTag, title, description, advantages (vert), weaknesses (rouge). iconClassName / roleTagClassName pour personnaliser."
+          description="Carte personnage : classe (BadgeClasse) ou icon, roleTag, title, description, advantages, weaknesses."
         >
           <div className="flex flex-wrap gap-4">
             <CharacterCard
-              icon={<Sword className="text-sky-400" />}
+              classe="sword"
               roleTag="TANK / DPS"
               title="Guerrier humain"
               description="Un combattant polyvalent capable de s'adapter à toutes les situations de combat."

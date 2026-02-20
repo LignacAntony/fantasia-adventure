@@ -3,6 +3,8 @@
 import * as React from "react"
 
 import { cn } from "@/lib/utils"
+import { BadgeClasse } from "@/components/badge-classe"
+import type { BadgeClasseVariant } from "@/components/badge-classe"
 import { Badge } from "@/components/ui/badge"
 import type { VariantProps } from "class-variance-authority"
 import { badgeVariants } from "@/components/ui/badge"
@@ -14,6 +16,7 @@ export interface CharacterCardProps
   extends Omit<React.ComponentProps<"article">, "title"> {
   icon?: React.ReactNode
   iconClassName?: string
+  classe?: BadgeClasseVariant
   roleTag?: React.ReactNode
   roleTagVariant?: CharacterCardRoleTagVariant
   roleTagClassName?: string
@@ -26,6 +29,7 @@ export interface CharacterCardProps
 function CharacterCard({
   icon,
   iconClassName,
+  classe,
   roleTag,
   roleTagVariant = "yellow",
   roleTagClassName,
@@ -36,6 +40,8 @@ function CharacterCard({
   className,
   ...props
 }: CharacterCardProps) {
+  const showIconArea = classe != null || icon != null
+
   return (
     <article
       className={cn(
@@ -45,16 +51,19 @@ function CharacterCard({
       {...props}
     >
       <div className="flex items-start gap-3">
-        {icon && (
-          <div
-            className={cn(
-              "flex size-12 shrink-0 items-center justify-center rounded-xl border-2 border-sky-400/60 bg-slate-800/80 text-sky-400 [&>svg]:size-6",
-              iconClassName
-            )}
-          >
-            {icon}
-          </div>
-        )}
+        {showIconArea &&
+          (classe != null ? (
+            <BadgeClasse variant={classe} />
+          ) : (
+            <div
+              className={cn(
+                "flex size-12 shrink-0 items-center justify-center rounded-xl border-2 border-sky-400/60 bg-slate-800/80 text-sky-400 [&>svg]:size-6",
+                iconClassName
+              )}
+            >
+              {icon}
+            </div>
+          ))}
         {roleTag != null && roleTag !== "" && (
           <Badge
             variant={roleTagVariant}
