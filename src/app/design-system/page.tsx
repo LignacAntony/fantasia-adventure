@@ -223,6 +223,7 @@ export default function DesignSystemPage() {
           </div>
         </Section>
 
+
         {/* Badge */}
         <Section
           title="Badge"
