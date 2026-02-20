@@ -1,0 +1,45 @@
+name: Frontend — Deploy
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "frontend/**"
+
+jobs:
+  release:
+    name: Release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get latest frontend tag
+        id: get_tag
+        run: |
+          git fetch --tags
+          LATEST=$(git tag --sort=-v:refname | grep '^frontend/v' | head -n 1)
+          echo "latest=${LATEST:-frontend/v0.0.0}" >> $GITHUB_OUTPUT
+
+      - name: Bump patch version
+        id: bump
+        run: |
+          LATEST=${{ steps.get_tag.outputs.latest }}
+          VERSION=${LATEST#frontend/v}
+          MAJOR=$(echo $VERSION | cut -d. -f1)
+          MINOR=$(echo $VERSION | cut -d. -f2)
+          PATCH=$(echo $VERSION | cut -d. -f3)
+          NEW_TAG="frontend/v${MAJOR}.${MINOR}.$((PATCH + 1))"
+          echo "new_tag=$NEW_TAG" >> $GITHUB_OUTPUT
+
+      - name: Create tag and release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.bump.outputs.new_tag }}
+          name: "frontend ${{ steps.bump.outputs.new_tag }}"
+          generate_release_notes: true
