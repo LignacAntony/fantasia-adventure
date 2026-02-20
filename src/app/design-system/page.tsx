@@ -193,6 +193,7 @@ export default function DesignSystemPage() {
         </Section>
 
         {/* Buttons */}
+        <a className="text-4xl font-bold tracking-tight text-red-800 mb-4 block"  target="_blank" href="https://lucide.dev/icons/">--- Lucide Icons ---</a>
         <Section
           title="Button"
           description="variant: default | destructive | outline | secondary | ghost | link. size: default | xs | sm | lg | icon | icon-xs | icon-sm | icon-lg"
