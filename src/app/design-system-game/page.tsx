@@ -54,7 +54,7 @@ export default function DesignSystemGamePage() {
         >
           <div className="max-w-2xl space-y-3 rounded-xl bg-slate-900 p-4">
             <ChoiceCard
-              icon={<WandSparkles className="text-amber-400" />}
+              icon={<WandSparkles className="text-green-400" />}
               title="Utiliser la magie de l'air"
               riskLabel="Risque Faible"
               riskVariant="low"

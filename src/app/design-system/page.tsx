@@ -221,13 +221,24 @@ export default function DesignSystemPage() {
           <div className="mt-4">
             <Button disabled>Disabled</Button>
           </div>
+          <p className="text-muted-foreground mt-6 text-sm font-medium">
+            Variantes thème (variant: yellow | green | blue | red | purple | orange)
+          </p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            <Button variant="yellow">Yellow</Button>
+            <Button variant="green">Green</Button>
+            <Button variant="blue">Blue</Button>
+            <Button variant="red">Red</Button>
+            <Button variant="purple">Purple</Button>
+            <Button variant="orange">Orange</Button>
+          </div>
         </Section>
 
 
         {/* Badge */}
         <Section
           title="Badge"
-          description="variant: default | secondary | destructive | outline | ghost | link. Petit label ou compteur."
+          description="variant: default | secondary | destructive | outline | ghost | link | yellow | green | blue | red | purple | orange."
         >
           <div className="flex flex-wrap gap-2">
             <Badge>Default</Badge>
@@ -241,6 +252,17 @@ export default function DesignSystemPage() {
             <Badge>12</Badge>
             <Badge variant="secondary">Nouveau</Badge>
             <Badge variant="outline">Beta</Badge>
+          </div>
+          <p className="text-muted-foreground mt-6 text-sm font-medium">
+            Variantes thème (variant: yellow | green | blue | red | purple | orange)
+          </p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            <Badge variant="yellow">Yellow</Badge>
+            <Badge variant="green">Green</Badge>
+            <Badge variant="blue">Blue</Badge>
+            <Badge variant="red">Red</Badge>
+            <Badge variant="purple">Purple</Badge>
+            <Badge variant="orange">Orange</Badge>
           </div>
         </Section>
 

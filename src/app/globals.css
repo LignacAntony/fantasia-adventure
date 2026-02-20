@@ -37,6 +37,18 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
+  --color-theme-yellow: var(--theme-yellow);
+  --color-theme-yellow-foreground: var(--theme-yellow-foreground);
+  --color-theme-green: var(--theme-green);
+  --color-theme-green-foreground: var(--theme-green-foreground);
+  --color-theme-blue: var(--theme-blue);
+  --color-theme-blue-foreground: var(--theme-blue-foreground);
+  --color-theme-red: var(--theme-red);
+  --color-theme-red-foreground: var(--theme-red-foreground);
+  --color-theme-purple: var(--theme-purple);
+  --color-theme-purple-foreground: var(--theme-purple-foreground);
+  --color-theme-orange: var(--theme-orange);
+  --color-theme-orange-foreground: var(--theme-orange-foreground);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -79,6 +91,18 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+  --theme-yellow: oklch(0.75 0.15 75);
+  --theme-yellow-foreground: oklch(0.99 0 0);
+  --theme-green: oklch(0.65 0.22 145);
+  --theme-green-foreground: oklch(0.99 0 0);
+  --theme-blue: oklch(0.58 0.22 265);
+  --theme-blue-foreground: oklch(0.99 0 0);
+  --theme-red: oklch(0.63 0.22 25);
+  --theme-red-foreground: oklch(0.99 0 0);
+  --theme-purple: oklch(0.60 0.25 295);
+  --theme-purple-foreground: oklch(0.99 0 0);
+  --theme-orange: oklch(0.70 0.18 55);
+  --theme-orange-foreground: oklch(0.99 0 0);
 }
 
 .dark {
@@ -113,6 +137,18 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
+  --theme-yellow: oklch(0.75 0.15 75);
+  --theme-yellow-foreground: oklch(0.99 0 0);
+  --theme-green: oklch(0.65 0.22 145);
+  --theme-green-foreground: oklch(0.99 0 0);
+  --theme-blue: oklch(0.58 0.22 265);
+  --theme-blue-foreground: oklch(0.99 0 0);
+  --theme-red: oklch(0.63 0.22 25);
+  --theme-red-foreground: oklch(0.99 0 0);
+  --theme-purple: oklch(0.60 0.25 295);
+  --theme-purple-foreground: oklch(0.99 0 0);
+  --theme-orange: oklch(0.70 0.18 55);
+  --theme-orange-foreground: oklch(0.99 0 0);
 }
 
 @layer base {
