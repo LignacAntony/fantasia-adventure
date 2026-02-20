@@ -1,9 +1,17 @@
 "use client"
 
 import { CharacterCard } from "@/components/character-card"
+import { ChoiceCard } from "@/components/choice-card"
 import { ChatHistory } from "@/components/chat-history"
 import { FeatureCard } from "@/components/feature-card"
-import { AlertCircleIcon, Crown, Sparkles, Sword, Users } from "lucide-react"
+import {
+  AlertCircleIcon,
+  Crown,
+  Sparkles,
+  Sword,
+  Users,
+  WandSparkles,
+} from "lucide-react"
 
 function Section({
   title,
@@ -39,6 +47,31 @@ export default function DesignSystemGamePage() {
             Composants et patterns pour le jeu.
           </p>
         </header>
+
+        <Section
+          title="Choice Card"
+          description="Carte de choix : icon, title, riskLabel (riskVariant: low | medium | high), description, avatars. selected pour la bordure violette + glow."
+        >
+          <div className="max-w-2xl space-y-3 rounded-xl bg-slate-900 p-4">
+            <ChoiceCard
+              icon={<WandSparkles className="text-amber-400" />}
+              title="Utiliser la magie de l'air"
+              riskLabel="Risque Faible"
+              riskVariant="low"
+              description="Demander au Mage de canaliser un courant ascendant pour porter le groupe. (Consomme du Mana)"
+              avatars={[{ initials: "BB", className: "bg-violet-600" }]}
+            />
+            <ChoiceCard
+              icon={<WandSparkles className="text-amber-400" />}
+              title="Utiliser la magie de l'air"
+              riskLabel="Risque Faible"
+              riskVariant="low"
+              description="Demander au Mage de canaliser un courant ascendant pour porter le groupe. (Consomme du Mana)"
+              avatars={[{ initials: "BB", className: "bg-violet-600" }]}
+              selected
+            />
+          </div>
+        </Section>
 
         <Section
           title="Character Card"
