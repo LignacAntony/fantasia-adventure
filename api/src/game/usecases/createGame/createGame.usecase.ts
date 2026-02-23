@@ -1,4 +1,3 @@
-import type { Game } from "@/00_infra/types/game.ts";
 import type { IGameRepository } from "../../repository/game.repository.interface.ts";
 import type { ICreateGameUsecasePresenter } from "./createGame.presenter.ts";
 
