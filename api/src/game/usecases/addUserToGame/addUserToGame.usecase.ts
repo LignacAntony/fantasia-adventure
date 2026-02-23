@@ -6,10 +6,17 @@ import type { IAddUserToGameUsecasePresenter } from "./addUserToGame.presenter.t
 export class AddUserToGameUsecase<SuccessType, NotFoundType, InvalidArgsType> {
   constructor(
     private readonly repository: IGameRepository,
-    private readonly presenter: IAddUserToGameUsecasePresenter<SuccessType, NotFoundType, InvalidArgsType>,
+    private readonly presenter: IAddUserToGameUsecasePresenter<
+      SuccessType,
+      NotFoundType,
+      InvalidArgsType
+    >,
   ) {}
 
-  async execute(rawParams: unknown, rawBody: unknown): Promise<SuccessType | NotFoundType | InvalidArgsType> {
+  async execute(
+    rawParams: unknown,
+    rawBody: unknown,
+  ): Promise<SuccessType | NotFoundType | InvalidArgsType> {
     const parsedParams = gameIdParamsSchema.safeParse(rawParams);
     if (!parsedParams.success) {
       console.log(`[AddUserToGameUsecase] Invalid params`);
@@ -27,7 +34,9 @@ export class AddUserToGameUsecase<SuccessType, NotFoundType, InvalidArgsType> {
       console.log(`[AddUserToGameUsecase] Game not found: ${id}`);
       return this.presenter.notFound();
     }
-    console.log(`[AddUserToGameUsecase] User "${username}" added to game: ${id}`);
+    console.log(
+      `[AddUserToGameUsecase] User "${username}" added to game: ${id}`,
+    );
     return this.presenter.success(game);
   }
 }
