@@ -1,5 +1,6 @@
 import express from "express";
 import { createServer } from "http";
+import cors from "cors";
 import { Server } from "socket.io";
 import { gameRouter } from "./game/game.router.js";
 import { envVariables } from "./00_infra/envVariables.js";
@@ -7,9 +8,15 @@ import { envVariables } from "./00_infra/envVariables.js";
 const app = express();
 const httpServer = createServer(app);
 
+app.use(cors({
+  origin: envVariables.FRONTEND_URL,
+  credentials: true,
+}));
+
 const io = new Server(httpServer, {
   cors: {
     origin: envVariables.FRONTEND_URL,
+    credentials: true
   },
 });
 
