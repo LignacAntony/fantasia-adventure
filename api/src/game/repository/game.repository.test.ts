@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { GameRepository } from "./game.repository.ts";
+import { GameRepository } from "./game.repository.js";
 
 let repo: GameRepository;
 

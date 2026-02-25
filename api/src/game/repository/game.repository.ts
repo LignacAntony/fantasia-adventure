@@ -1,5 +1,5 @@
 import { v4 } from "uuid";
-import type { IGameRepository } from "./game.repository.interface.ts";
+import type { IGameRepository } from "./game.repository.interface.js";
 import type { Game } from "@/types/game.js";
 import type { User } from "@/types/user.js";
 
