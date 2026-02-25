@@ -3,7 +3,6 @@ import type { IGameRepository } from "./game.repository.interface.js";
 import type { Game } from "@/types/game.js";
 import type { User } from "@/types/user.js";
 
-
 const db: Game[] = [];
 
 export class GameRepository implements IGameRepository {
