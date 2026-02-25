@@ -1,5 +1,5 @@
 import type { IGameRepository } from "../../repository/game.repository.interface.ts";
-import { gameIdParamsSchema } from "../../schemas.ts";
+import { gameIdParamsSchema } from "../../schemas.js";
 import type { IGetGameByIdUsecasePresenter } from "./getGameById.presenter.ts";
 
 export class GetGameByIdUsecase<SuccessType, NotFoundType, InvalidArgsType> {

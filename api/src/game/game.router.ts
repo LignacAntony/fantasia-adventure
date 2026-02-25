@@ -1,9 +1,9 @@
 import { Router } from "express";
-import { gameRepository } from "./repository/game.repository.ts";
-import { CreateGameUsecase } from "./usecases/createGame/createGame.usecase.ts";
-import { ListGamesUsecase } from "./usecases/listGames/listGames.usecase.ts";
-import { GetGameByIdUsecase } from "./usecases/getGameById/getGameById.usecase.ts";
-import { AddUserToGameUsecase } from "./usecases/addUserToGame/addUserToGame.usecase.ts";
+import { gameRepository } from "./repository/game.repository.js";
+import { CreateGameUsecase } from "./usecases/createGame/createGame.usecase.js";
+import { ListGamesUsecase } from "./usecases/listGames/listGames.usecase.js";
+import { GetGameByIdUsecase } from "./usecases/getGameById/getGameById.usecase.js";
+import { AddUserToGameUsecase } from "./usecases/addUserToGame/addUserToGame.usecase.js";
 
 export const gameRouter = Router();
 

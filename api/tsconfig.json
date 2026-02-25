@@ -34,9 +34,6 @@
       "@/*": ["./src/*"]
     },
 
-    "allowImportingTsExtensions": true,
-    "noEmit": true,
-
     "strict": true,
     "verbatimModuleSyntax": true,
     "isolatedModules": true,

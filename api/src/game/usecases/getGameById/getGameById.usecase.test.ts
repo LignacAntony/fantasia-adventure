@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import type { Game } from "@/00_infra/types/game.ts";
-import { GameRepository } from "../../repository/game.repository.ts";
-import { GetGameByIdUsecase } from "./getGameById.usecase.ts";
+
+import { GameRepository } from "../../repository/game.repository.js";
+import { GetGameByIdUsecase } from "./getGameById.usecase.js";
+import type { Game } from "@/types/game.js";
 
 let repo: GameRepository;
 let usecase: GetGameByIdUsecase<Game, "not_found", "invalid_args">;

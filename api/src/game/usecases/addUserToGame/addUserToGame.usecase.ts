@@ -1,6 +1,6 @@
 import { v4 } from "uuid";
 import type { IGameRepository } from "../../repository/game.repository.interface.ts";
-import { gameIdParamsSchema, addUserBodySchema } from "../../schemas.ts";
+import { gameIdParamsSchema, addUserBodySchema } from "../../schemas.js";
 import type { IAddUserToGameUsecasePresenter } from "./addUserToGame.presenter.ts";
 
 export class AddUserToGameUsecase<SuccessType, NotFoundType, InvalidArgsType> {

@@ -1,5 +1,6 @@
-import type { Game } from "@/00_infra/types/game.ts";
-import type { User } from "@/00_infra/types/user.ts";
+import type { Game } from "@/types/game.js";
+import type { User } from "@/types/user.js";
+
 
 export interface IGameRepository {
   create(): Game;

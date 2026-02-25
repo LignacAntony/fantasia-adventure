@@ -1,4 +1,5 @@
-import type { Game } from "@/00_infra/types/game.ts";
+import type { Game } from "@/types/game.js";
+
 
 export interface IListGamesUsecasePresenter<SuccessType> {
   success(games: Game[]): SuccessType;
