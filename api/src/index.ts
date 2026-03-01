@@ -23,6 +23,7 @@ io.on("connection", (socket) => {
 app.use(express.json());
 app.use("/games", gameRouter);
 
-httpServer.listen(3001, () => {
-  console.log(`server listening on port 3001`);
+const PORT = process.env.PORT ?? 3001;
+httpServer.listen(Number(PORT), () => {
+  console.log(`server listening on port ${PORT}`);
 });
