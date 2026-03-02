@@ -1,3 +1,4 @@
+import cors from "cors";
 import express from "express";
 import { createServer } from "http";
 import { Server } from "socket.io";
@@ -7,9 +8,17 @@ import { envVariables } from "./00_infra/env/envVariables.js";
 const app = express();
 const httpServer = createServer(app);
 
+app.use(
+  cors({
+    origin: envVariables.CORS_ORIGINS,
+    credentials: true,
+  }),
+);
+
 const io = new Server(httpServer, {
   cors: {
-    origin: envVariables.FRONTEND_URL,
+    origin: envVariables.CORS_ORIGINS,
+    credentials: true,
   },
 });
 
