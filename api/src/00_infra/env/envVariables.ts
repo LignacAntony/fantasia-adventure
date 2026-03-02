@@ -15,5 +15,7 @@ const toOrigin = (s: string) => s.trim().replace(/\/$/, "");
 export const envVariables = {
   ...parsed,
   /** Liste d’origines pour CORS (sans slash final) */
-  CORS_ORIGINS: parsed.FRONTEND_URL.split(",").map(toOrigin).filter((o) => o.length > 0),
+  CORS_ORIGINS: parsed.FRONTEND_URL.split(",")
+    .map(toOrigin)
+    .filter((o) => o.length > 0),
 };

@@ -12,7 +12,7 @@ app.use(
   cors({
     origin: envVariables.CORS_ORIGINS,
     credentials: true,
-  })
+  }),
 );
 
 const io = new Server(httpServer, {
