@@ -21,9 +21,11 @@ io.on("connection", (socket) => {
 });
 
 app.use(express.json());
+app.get("/health", (_req, res) => res.status(200).send("ok"));
 app.use("/games", gameRouter);
 
 const PORT = process.env.PORT ?? 3001;
-httpServer.listen(Number(PORT), () => {
-  console.log(`server listening on port ${PORT}`);
+const HOST = "0.0.0.0";
+httpServer.listen(Number(PORT), HOST, () => {
+  console.log(`server listening on ${HOST}:${PORT}`);
 });
