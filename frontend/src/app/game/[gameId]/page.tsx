@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { v4 as uuidv4 } from "uuid";
 import { useParams, useRouter } from "next/navigation";
 import { socket } from "@/00_infra/socket/page";
 import { CardContent } from "@/components/ui/card";
@@ -17,29 +18,23 @@ type FeedItem =
   | { id: string; type: "left"; username: string }
   | { id: string; type: "message"; username: string; text: string };
 
-function uid() {
-  return Math.random().toString(36).slice(2);
-}
-
 export default function GamePage() {
   const { gameId } = useParams<{ gameId: string }>();
   const router = useRouter();
   const [feed, setFeed] = useState<FeedItem[]>([]);
   const [text, setText] = useState("");
-  const [user, setUser] = useState<{ userId: string; username: string } | null>(
-    null,
-  );
+  const [user] = useState<{ userId: string; username: string } | null>(() => {
+    const raw = localStorage.getItem("fantasia_user");
+    return raw ? JSON.parse(raw) : null;
+  });
   const feedEndRef = useRef<HTMLDivElement>(null);
 
-  // Load user from localStorage
+  // Redirect if no user
   useEffect(() => {
-    const raw = localStorage.getItem("fantasia_user");
-    if (!raw) {
+    if (!user) {
       router.push("/");
-      return;
     }
-    setUser(JSON.parse(raw));
-  }, [router]);
+  }, [router, user]);
 
   // Socket setup
   useEffect(() => {
@@ -54,20 +49,20 @@ export default function GamePage() {
     function onPlayerJoined(payload: { username: string }) {
       setFeed((f) => [
         ...f,
-        { id: uid(), type: "joined", username: payload.username },
+        { id: uuidv4(), type: "joined", username: payload.username },
       ]);
     }
     function onPlayerLeft(payload: { username: string }) {
       setFeed((f) => [
         ...f,
-        { id: uid(), type: "left", username: payload.username },
+        { id: uuidv4(), type: "left", username: payload.username },
       ]);
     }
     function onMessage(payload: { username: string; text: string }) {
       setFeed((f) => [
         ...f,
         {
-          id: uid(),
+          id: uuidv4(),
           type: "message",
           username: payload.username,
           text: payload.text,
