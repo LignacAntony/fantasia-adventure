@@ -3,13 +3,14 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { socket } from "@/00_infra/socket/page";
-import { Card, CardContent } from "@/components/ui/card";
+import { CardContent } from "@/components/ui/card";
 import {
   InputGroup,
   InputGroupButton,
   InputGroupInput,
 } from "@/components/ui/input-group";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Navbar } from "@/components/navbar";
 
 type FeedItem =
   | { id: string; type: "joined"; username: string }
@@ -107,89 +108,105 @@ export default function GamePage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col items-center bg-background py-10 px-4">
-      <div className="flex w-full max-w-xl flex-col gap-4">
-        <div>
-          <h1 className="text-xl font-semibold text-foreground">Partie</h1>
-          <p className="text-xs text-muted-foreground font-mono">{gameId}</p>
+    <div className="relative min-h-screen bg-[#080e20] text-white">
+      {/* Fixed gradient backgrounds */}
+      <div
+        className="pointer-events-none fixed inset-0 opacity-40"
+        style={{
+          background:
+            "radial-gradient(ellipse 80% 50% at 20% 20%, #7c3aed 0%, transparent 60%), radial-gradient(ellipse 60% 40% at 80% 80%, #6d28d9 0%, transparent 60%)",
+        }}
+      />
+
+      <Navbar brand="FantasIA Adventure" />
+
+      <div className="relative z-10">
+        <div className="mx-auto flex max-w-2xl flex-col gap-4 px-4 py-8">
+          {/* Header */}
+          <div>
+            <h1 className="text-xl font-semibold text-white">Partie</h1>
+            <p className="font-mono text-xs text-white/50">{gameId}</p>
+          </div>
+
+          {/* Feed */}
+          <div className="rounded-xl border border-white/10 bg-white/5 backdrop-blur-sm">
+            <CardContent className="p-4">
+              <ScrollArea className="h-96">
+                <div className="flex flex-col gap-2">
+                  {feed.length === 0 && (
+                    <p className="mt-auto text-center text-sm text-white/40">
+                      Aucun événement pour l&apos;instant.
+                    </p>
+                  )}
+                  {feed.map((item) => {
+                    if (item.type === "joined") {
+                      return (
+                        <p
+                          key={item.id}
+                          className="text-xs italic text-green-400"
+                        >
+                          {item.username} a rejoint la partie
+                        </p>
+                      );
+                    }
+                    if (item.type === "left") {
+                      return (
+                        <p
+                          key={item.id}
+                          className="text-xs italic text-red-400"
+                        >
+                          {item.username} a quitté la partie
+                        </p>
+                      );
+                    }
+                    const isMe = item.username === user?.username;
+                    return (
+                      <div
+                        key={item.id}
+                        className={`flex flex-col ${isMe ? "items-end" : "items-start"}`}
+                      >
+                        <span className="text-xs text-white/40">
+                          {item.username}
+                        </span>
+                        <span
+                          className={`rounded-lg px-3 py-1.5 text-sm text-white ${
+                            isMe
+                              ? "bg-purple-500/20"
+                              : "bg-white/10"
+                          }`}
+                        >
+                          {item.text}
+                        </span>
+                      </div>
+                    );
+                  })}
+                  <div ref={feedEndRef} />
+                </div>
+              </ScrollArea>
+            </CardContent>
+          </div>
+
+          {/* Input */}
+          <InputGroup>
+            <InputGroupInput
+              placeholder="Écrire un message..."
+              value={text}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                setText(e.target.value)
+              }
+              onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) =>
+                e.key === "Enter" && sendMessage()
+              }
+            />
+            <InputGroupButton
+              variant="purple"
+              onClick={sendMessage}
+              disabled={!text.trim()}
+            >
+              Envoyer
+            </InputGroupButton>
+          </InputGroup>
         </div>
-
-        <Card>
-          <CardContent className="p-4">
-            <ScrollArea className="h-96">
-              <div className="flex flex-col gap-2">
-                {feed.length === 0 && (
-                  <p className="text-sm text-muted-foreground text-center mt-auto">
-                    Aucun événement pour l&apos;instant.
-                  </p>
-                )}
-                {feed.map((item) => {
-                  if (item.type === "joined") {
-                    return (
-                      <p
-                        key={item.id}
-                        className="text-xs text-green-600 dark:text-green-400 italic"
-                      >
-                        {item.username} a rejoint la partie
-                      </p>
-                    );
-                  }
-                  if (item.type === "left") {
-                    return (
-                      <p
-                        key={item.id}
-                        className="text-xs text-destructive italic"
-                      >
-                        {item.username} a quitté la partie
-                      </p>
-                    );
-                  }
-                  const isMe = item.username === user?.username;
-                  return (
-                    <div
-                      key={item.id}
-                      className={`flex flex-col ${isMe ? "items-end" : "items-start"}`}
-                    >
-                      <span className="text-xs text-muted-foreground">
-                        {item.username}
-                      </span>
-                      <span
-                        className={`rounded-lg px-3 py-1.5 text-sm ${
-                          isMe
-                            ? "bg-primary text-primary-foreground"
-                            : "bg-muted text-foreground"
-                        }`}
-                      >
-                        {item.text}
-                      </span>
-                    </div>
-                  );
-                })}
-                <div ref={feedEndRef} />
-              </div>
-            </ScrollArea>
-          </CardContent>
-        </Card>
-
-        <InputGroup>
-          <InputGroupInput
-            placeholder="Écrire un message..."
-            value={text}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-              setText(e.target.value)
-            }
-            onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) =>
-              e.key === "Enter" && sendMessage()
-            }
-          />
-          <InputGroupButton
-            variant="default"
-            onClick={sendMessage}
-            disabled={!text.trim()}
-          >
-            Envoyer
-          </InputGroupButton>
-        </InputGroup>
       </div>
     </div>
   );
