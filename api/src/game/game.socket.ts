@@ -28,7 +28,10 @@ export function registerGameSocketHandlers(io: Server): void {
     socket.on("game:join", (payload: unknown) => {
       const result = joinLeaveSchema.safeParse(payload);
       if (!result.success) {
-        socket.emit("game:error", { message: "Invalid payload", errors: result.error.issues });
+        socket.emit("game:error", {
+          message: "Invalid payload",
+          errors: result.error.issues,
+        });
         return;
       }
       const { gameId, userId, username } = result.data;
@@ -41,13 +44,18 @@ export function registerGameSocketHandlers(io: Server): void {
 
       socket.join(gameId);
       console.log(`[Socket] ${username} (${userId}) joined room ${gameId}`);
-      socket.to(gameId).emit("game:player-joined", { gameId, userId, username });
+      socket
+        .to(gameId)
+        .emit("game:player-joined", { gameId, userId, username });
     });
 
     socket.on("game:leave", (payload: unknown) => {
       const result = joinLeaveSchema.safeParse(payload);
       if (!result.success) {
-        socket.emit("game:error", { message: "Invalid payload", errors: result.error.issues });
+        socket.emit("game:error", {
+          message: "Invalid payload",
+          errors: result.error.issues,
+        });
         return;
       }
       const { gameId, userId, username } = result.data;
@@ -60,7 +68,10 @@ export function registerGameSocketHandlers(io: Server): void {
     socket.on("game:message", (payload: unknown) => {
       const result = messageSchema.safeParse(payload);
       if (!result.success) {
-        socket.emit("game:error", { message: "Invalid payload", errors: result.error.issues });
+        socket.emit("game:error", {
+          message: "Invalid payload",
+          errors: result.error.issues,
+        });
         return;
       }
       const { gameId, userId, username, text } = result.data;
@@ -70,14 +81,19 @@ export function registerGameSocketHandlers(io: Server): void {
         return;
       }
 
-      console.log(`[Socket] ${username} (${userId}) sent message in ${gameId}: ${text}`);
+      console.log(
+        `[Socket] ${username} (${userId}) sent message in ${gameId}: ${text}`,
+      );
       io.to(gameId).emit("game:message", { gameId, userId, username, text });
     });
 
     socket.on("game:choice", (payload: unknown) => {
       const result = choiceSchema.safeParse(payload);
       if (!result.success) {
-        socket.emit("game:error", { message: "Invalid payload", errors: result.error.issues });
+        socket.emit("game:error", {
+          message: "Invalid payload",
+          errors: result.error.issues,
+        });
         return;
       }
       const { gameId, userId, choice } = result.data;

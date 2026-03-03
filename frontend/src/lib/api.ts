@@ -11,7 +11,10 @@ export async function createGame(): Promise<Game> {
   return res.json();
 }
 
-export async function joinGame(gameId: string, username: string): Promise<Game> {
+export async function joinGame(
+  gameId: string,
+  username: string,
+): Promise<Game> {
   const res = await fetch(`${API_URL}/games/${gameId}/users`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },

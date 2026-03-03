@@ -118,13 +118,22 @@ export default function Home() {
           </h1>
           <p className="mt-6 max-w-xl text-lg text-white/70">
             Plonge dans une aventure de jeu de rôle multijoueur guidée par une
-            intelligence artificielle. Crée ta partie ou rejoins celle d&apos;un ami.
+            intelligence artificielle. Crée ta partie ou rejoins celle d&apos;un
+            ami.
           </p>
           <div className="mt-10 flex flex-wrap items-center justify-center gap-4">
-            <Button variant="purple" size="lg" onClick={() => openModal("create")}>
+            <Button
+              variant="purple"
+              size="lg"
+              onClick={() => openModal("create")}
+            >
               Créer une partie
             </Button>
-            <Button variant="outline" size="lg" onClick={() => openModal("join")}>
+            <Button
+              variant="outline"
+              size="lg"
+              onClick={() => openModal("join")}
+            >
               Rejoindre une partie
             </Button>
           </div>
@@ -162,7 +171,10 @@ export default function Home() {
       />
 
       {/* Create dialog */}
-      <Dialog open={modal === "create"} onOpenChange={(open) => !open && closeModal()}>
+      <Dialog
+        open={modal === "create"}
+        onOpenChange={(open) => !open && closeModal()}
+      >
         <DialogContent className="border-white/10 bg-[#080e20] text-white sm:max-w-sm">
           <DialogHeader>
             <DialogTitle className="text-white">Créer une partie</DialogTitle>
@@ -192,10 +204,19 @@ export default function Home() {
           )}
 
           <DialogFooter>
-            <Button variant="ghost" onClick={closeModal} disabled={loading} className="text-white/60 hover:text-white hover:bg-white/10">
+            <Button
+              variant="ghost"
+              onClick={closeModal}
+              disabled={loading}
+              className="text-white/60 hover:text-white hover:bg-white/10"
+            >
               Annuler
             </Button>
-            <Button variant="purple" onClick={handleCreateGame} disabled={loading}>
+            <Button
+              variant="purple"
+              onClick={handleCreateGame}
+              disabled={loading}
+            >
               {loading ? "Création..." : "Créer"}
             </Button>
           </DialogFooter>
@@ -203,10 +224,15 @@ export default function Home() {
       </Dialog>
 
       {/* Join dialog */}
-      <Dialog open={modal === "join"} onOpenChange={(open) => !open && closeModal()}>
+      <Dialog
+        open={modal === "join"}
+        onOpenChange={(open) => !open && closeModal()}
+      >
         <DialogContent className="border-white/10 bg-[#080e20] text-white sm:max-w-sm">
           <DialogHeader>
-            <DialogTitle className="text-white">Rejoindre une partie</DialogTitle>
+            <DialogTitle className="text-white">
+              Rejoindre une partie
+            </DialogTitle>
           </DialogHeader>
 
           <div className="space-y-4">
@@ -248,10 +274,19 @@ export default function Home() {
           )}
 
           <DialogFooter>
-            <Button variant="ghost" onClick={closeModal} disabled={loading} className="text-white/60 hover:text-white hover:bg-white/10">
+            <Button
+              variant="ghost"
+              onClick={closeModal}
+              disabled={loading}
+              className="text-white/60 hover:text-white hover:bg-white/10"
+            >
               Annuler
             </Button>
-            <Button variant="outline" onClick={handleJoinGame} disabled={loading}>
+            <Button
+              variant="outline"
+              onClick={handleJoinGame}
+              disabled={loading}
+            >
               {loading ? "Connexion..." : "Rejoindre"}
             </Button>
           </DialogFooter>

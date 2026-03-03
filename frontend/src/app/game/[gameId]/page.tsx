@@ -170,9 +170,7 @@ export default function GamePage() {
                         </span>
                         <span
                           className={`rounded-lg px-3 py-1.5 text-sm text-white ${
-                            isMe
-                              ? "bg-purple-500/20"
-                              : "bg-white/10"
+                            isMe ? "bg-purple-500/20" : "bg-white/10"
                           }`}
                         >
                           {item.text}
