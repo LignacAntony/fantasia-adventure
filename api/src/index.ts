@@ -4,6 +4,7 @@ import { createServer } from "http";
 import { Server } from "socket.io";
 import { gameRouter } from "./game/game.router.js";
 import { envVariables } from "./00_infra/env/envVariables.js";
+import { registerGameSocketHandlers } from "./game/game.socket.js";
 
 const app = express();
 const httpServer = createServer(app);
@@ -22,13 +23,9 @@ const io = new Server(httpServer, {
   },
 });
 
-io.on("connection", (socket) => {
-  console.log("a user connected");
-  socket.on("disconnect", () => {
-    console.log("user disconnected");
-  });
-});
+registerGameSocketHandlers(io);
 
+app.use(cors({ origin: envVariables.FRONTEND_URL }));
 app.use(express.json());
 app.get("/health", (_req, res) => res.status(200).send("ok"));
 app.use("/games", gameRouter);
