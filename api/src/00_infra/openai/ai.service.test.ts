@@ -49,7 +49,9 @@ beforeEach(() => {
 
 describe("generateNarration()", () => {
   it("should return parsed narration and suggestions", async () => {
-    mockCreate.mockResolvedValueOnce(mockResponse("La forêt s'obscurcit...") as never);
+    mockCreate.mockResolvedValueOnce(
+      mockResponse("La forêt s'obscurcit...") as never,
+    );
 
     const result = await generateNarration(baseInput);
 
@@ -77,7 +79,9 @@ describe("generateNarration()", () => {
 
     await generateNarration(baseInput);
 
-    const [body] = mockCreate.mock.calls[0] as unknown as [{ messages: { role: string; content: string }[] }];
+    const [body] = mockCreate.mock.calls[0] as unknown as [
+      { messages: { role: string; content: string }[] },
+    ];
     const systemMessage = body.messages.find((m) => m.role === "system");
     expect(systemMessage?.content).toContain("La forêt maudite");
     expect(systemMessage?.content).toContain("Alice");
@@ -89,7 +93,9 @@ describe("generateNarration()", () => {
 
     await generateNarration(baseInput);
 
-    const [body] = mockCreate.mock.calls[0] as unknown as [{ messages: { role: string; content: string }[] }];
+    const [body] = mockCreate.mock.calls[0] as unknown as [
+      { messages: { role: string; content: string }[] },
+    ];
     const userMessages = body.messages.filter((m) => m.role === "user");
     expect(userMessages[0]?.content).toContain("contexte narratif initial");
   });
@@ -104,16 +110,30 @@ describe("generateNarration()", () => {
         {
           narration: "Le groupe entre dans la forêt.",
           choices: [
-            { playerId: "user-1", playerName: "Alice", avatar: "mage", choice: "Lancer un sort" },
-            { playerId: "user-2", playerName: "Bob", avatar: "warrior", choice: "Attaquer" },
+            {
+              playerId: "user-1",
+              playerName: "Alice",
+              avatar: "mage",
+              choice: "Lancer un sort",
+            },
+            {
+              playerId: "user-2",
+              playerName: "Bob",
+              avatar: "warrior",
+              choice: "Attaquer",
+            },
           ],
         },
       ],
     });
 
-    const [body] = mockCreate.mock.calls[0] as unknown as [{ messages: { role: string; content: string }[] }];
+    const [body] = mockCreate.mock.calls[0] as unknown as [
+      { messages: { role: string; content: string }[] },
+    ];
     const assistantMessage = body.messages.find((m) => m.role === "assistant");
-    expect(assistantMessage?.content).toContain("Le groupe entre dans la forêt.");
+    expect(assistantMessage?.content).toContain(
+      "Le groupe entre dans la forêt.",
+    );
   });
 
   it("should retry once on failure and succeed", async () => {

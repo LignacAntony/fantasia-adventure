@@ -1,8 +1,5 @@
 import { openaiClient } from "./openai.client.js";
-import type {
-  AiNarrationOutput,
-  GenerateNarrationInput,
-} from "./ai.types.js";
+import type { AiNarrationOutput, GenerateNarrationInput } from "./ai.types.js";
 
 const MODEL = "gpt-4o-mini";
 const TIMEOUT_MS = 10_000;
