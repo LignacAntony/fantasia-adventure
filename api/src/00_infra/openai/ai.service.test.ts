@@ -77,7 +77,7 @@ describe("generateNarration()", () => {
 
     await generateNarration(baseInput);
 
-    const [body] = mockCreate.mock.calls[0] as [{ messages: { role: string; content: string }[] }];
+    const [body] = mockCreate.mock.calls[0] as unknown as [{ messages: { role: string; content: string }[] }];
     const systemMessage = body.messages.find((m) => m.role === "system");
     expect(systemMessage?.content).toContain("La forêt maudite");
     expect(systemMessage?.content).toContain("Alice");
@@ -89,7 +89,7 @@ describe("generateNarration()", () => {
 
     await generateNarration(baseInput);
 
-    const [body] = mockCreate.mock.calls[0] as [{ messages: { role: string; content: string }[] }];
+    const [body] = mockCreate.mock.calls[0] as unknown as [{ messages: { role: string; content: string }[] }];
     const userMessages = body.messages.filter((m) => m.role === "user");
     expect(userMessages[0]?.content).toContain("contexte narratif initial");
   });
@@ -111,7 +111,7 @@ describe("generateNarration()", () => {
       ],
     });
 
-    const [body] = mockCreate.mock.calls[0] as [{ messages: { role: string; content: string }[] }];
+    const [body] = mockCreate.mock.calls[0] as unknown as [{ messages: { role: string; content: string }[] }];
     const assistantMessage = body.messages.find((m) => m.role === "assistant");
     expect(assistantMessage?.content).toContain("Le groupe entre dans la forêt.");
   });
