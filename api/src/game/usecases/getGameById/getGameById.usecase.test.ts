@@ -19,7 +19,7 @@ beforeEach(() => {
 
 describe("GetGameByIdUsecase", () => {
   it("should return the game when found", async () => {
-    const game = repo.create();
+    const game = repo.create({ name: "Test", theme: "Forêt", totalSteps: 5 });
     const result = await usecase.execute({ id: game.id });
     expect(result).toBe(game);
   });

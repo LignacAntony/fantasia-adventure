@@ -25,7 +25,6 @@ const io = new Server(httpServer, {
 
 registerGameSocketHandlers(io);
 
-app.use(cors({ origin: envVariables.FRONTEND_URL }));
 app.use(express.json());
 app.get("/health", (_req, res) => res.status(200).send("ok"));
 app.use("/games", gameRouter);
