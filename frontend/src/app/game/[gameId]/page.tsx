@@ -26,7 +26,7 @@ export default function GamePage() {
   const [copied, setCopied] = useState(false);
 
   function copyJoinLink() {
-    const link = `${window.location.origin}/game/${gameId}`;
+    const link = `${window.location.origin}/?join=${gameId}`;
     navigator.clipboard.writeText(link).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
@@ -39,12 +39,12 @@ export default function GamePage() {
   });
   const feedEndRef = useRef<HTMLDivElement>(null);
 
-  // Redirect if no user
+  // Redirect if no user — carry the gameId so the join modal auto-opens
   useEffect(() => {
     if (!user) {
-      router.push("/");
+      router.push(`/?join=${gameId}`);
     }
-  }, [router, user]);
+  }, [router, user, gameId]);
 
   // Socket setup
   useEffect(() => {
