@@ -1,7 +1,11 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { GameRepository } from "./game.repository.js";
 
-const defaultInput = { name: "Aventure test", theme: "La forêt maudite", totalSteps: 5 };
+const defaultInput = {
+  name: "Aventure test",
+  theme: "La forêt maudite",
+  totalSteps: 5,
+};
 
 let repo: GameRepository;
 

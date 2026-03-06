@@ -4,7 +4,11 @@ import { GameRepository } from "../../repository/game.repository.js";
 import { CreateGameUsecase } from "./createGame.usecase.js";
 import type { Game } from "@/types/game.js";
 
-const validBody = { name: "Aventure test", theme: "La forêt maudite", totalSteps: 5 };
+const validBody = {
+  name: "Aventure test",
+  theme: "La forêt maudite",
+  totalSteps: 5,
+};
 
 type Result = Game | "invalidArgs";
 
@@ -44,12 +48,18 @@ describe("CreateGameUsecase", () => {
   });
 
   it("should return invalidArgs when name is missing", async () => {
-    const result: Result = await usecase.execute({ theme: "Forêt", totalSteps: 5 });
+    const result: Result = await usecase.execute({
+      theme: "Forêt",
+      totalSteps: 5,
+    });
     expect(result).toBe("invalidArgs");
   });
 
   it("should return invalidArgs when totalSteps is out of range", async () => {
-    const result: Result = await usecase.execute({ ...validBody, totalSteps: 3 });
+    const result: Result = await usecase.execute({
+      ...validBody,
+      totalSteps: 3,
+    });
     expect(result).toBe("invalidArgs");
   });
 
