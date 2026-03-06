@@ -22,8 +22,9 @@ describe("ListGamesUsecase", () => {
   });
 
   it("should return all created games", async () => {
-    const g1 = repo.create();
-    const g2 = repo.create();
+    const input = { name: "Test", theme: "Forêt", totalSteps: 5 };
+    const g1 = repo.create(input);
+    const g2 = repo.create(input);
     const games = await usecase.execute();
     expect(games).toEqual([g1, g2]);
   });

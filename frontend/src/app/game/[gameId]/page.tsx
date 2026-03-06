@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { v4 as uuidv4 } from "uuid";
 import { useParams, useRouter } from "next/navigation";
+import { Copy, Check } from "lucide-react";
 import { socket } from "@/00_infra/socket/page";
 import { CardContent } from "@/components/ui/card";
 import {
@@ -22,6 +23,15 @@ export default function GamePage() {
   const { gameId } = useParams<{ gameId: string }>();
   const router = useRouter();
   const [feed, setFeed] = useState<FeedItem[]>([]);
+  const [copied, setCopied] = useState(false);
+
+  function copyJoinLink() {
+    const link = `${window.location.origin}/game/${gameId}`;
+    navigator.clipboard.writeText(link).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }
   const [text, setText] = useState("");
   const [user] = useState<{ userId: string; username: string } | null>(() => {
     const raw = localStorage.getItem("fantasia_user");
@@ -118,9 +128,27 @@ export default function GamePage() {
       <div className="relative z-10">
         <div className="mx-auto flex max-w-2xl flex-col gap-4 px-4 py-8">
           {/* Header */}
-          <div>
-            <h1 className="text-xl font-semibold text-white">Partie</h1>
-            <p className="font-mono text-xs text-white/50">{gameId}</p>
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h1 className="text-xl font-semibold text-white">Partie</h1>
+              <p className="font-mono text-xs text-white/50">{gameId}</p>
+            </div>
+            <button
+              onClick={copyJoinLink}
+              className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-white/70 transition hover:bg-white/10 hover:text-white"
+            >
+              {copied ? (
+                <>
+                  <Check className="size-3 text-green-400" />
+                  <span className="text-green-400">Copié !</span>
+                </>
+              ) : (
+                <>
+                  <Copy className="size-3" />
+                  Copier le lien
+                </>
+              )}
+            </button>
           </div>
 
           {/* Feed */}

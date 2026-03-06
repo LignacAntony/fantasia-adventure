@@ -19,7 +19,7 @@ beforeEach(() => {
 
 describe("AddUserToGameUsecase", () => {
   it("should add a user with a valid uuid and the correct username", async () => {
-    const game = repo.create();
+    const game = repo.create({ name: "Test", theme: "Forêt", totalSteps: 5 });
     const result = await usecase.execute(
       { id: game.id },
       { username: "Alice" },
@@ -51,13 +51,13 @@ describe("AddUserToGameUsecase", () => {
   });
 
   it("should return invalidArgs when username is empty", async () => {
-    const game = repo.create();
+    const game = repo.create({ name: "Test", theme: "Forêt", totalSteps: 5 });
     const result = await usecase.execute({ id: game.id }, { username: "" });
     expect(result).toBe("invalid_args");
   });
 
   it("should support multiple users", async () => {
-    const game = repo.create();
+    const game = repo.create({ name: "Test", theme: "Forêt", totalSteps: 5 });
     await usecase.execute({ id: game.id }, { username: "Alice" });
     await usecase.execute({ id: game.id }, { username: "Bob" });
     expect(game.users).toHaveLength(2);

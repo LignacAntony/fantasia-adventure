@@ -7,13 +7,17 @@ import { AddUserToGameUsecase } from "./usecases/addUserToGame/addUserToGame.use
 
 export const gameRouter = Router();
 
-gameRouter.post("/", async (_req, res) => {
+gameRouter.post("/", async (req, res) => {
   await new CreateGameUsecase(gameRepository, {
     success: (game) => {
       console.log(`[CreateGamePresenter] Sending 201 for game ${game.id}`);
       res.status(201).json(game);
     },
-  }).execute();
+    invalidArgs: () => {
+      console.log("[CreateGamePresenter] Invalid args, sending 400");
+      res.status(400).json({ message: "Invalid request" });
+    },
+  }).execute(req.body);
 });
 
 gameRouter.get("/", async (_req, res) => {

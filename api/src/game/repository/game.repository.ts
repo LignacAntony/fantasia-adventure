@@ -2,12 +2,21 @@ import { v4 } from "uuid";
 import type { IGameRepository } from "./game.repository.interface.js";
 import type { Game } from "@/types/game.js";
 import type { User } from "@/types/user.js";
+import type { CreateGameBody } from "../schemas.js";
 
 const db: Game[] = [];
 
 export class GameRepository implements IGameRepository {
-  create(): Game {
-    const game: Game = { id: v4(), users: [] };
+  create(input: CreateGameBody): Game {
+    const game: Game = {
+      id: v4(),
+      name: input.name,
+      theme: input.theme,
+      totalSteps: input.totalSteps,
+      currentStep: 0,
+      status: "lobby",
+      users: [],
+    };
     db.push(game);
     return game;
   }

@@ -20,11 +20,27 @@ import { Navbar } from "@/components/navbar";
 import { Footer } from "@/components/footer";
 import { createGame, joinGame } from "@/lib/api";
 import { AlertCircleIcon } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const NAV_ITEMS = [
   { label: "Accueil", href: "/" },
   { label: "Créer", href: "#" },
   { label: "Rejoindre", href: "#" },
+];
+
+const PREDEFINED_THEMES = [
+  "La forêt maudite",
+  "Les ruines oubliées",
+  "L'île des tempêtes",
+  "Le donjon de cristal",
+  "La cité engloutie",
+  "Thème personnalisé...",
 ];
 
 type ModalType = "create" | "join" | null;
@@ -34,13 +50,24 @@ export default function Home() {
   const [modal, setModal] = useState<ModalType>(null);
   const [username, setUsername] = useState("");
   const [gameId, setGameId] = useState("");
+  const [sessionName, setSessionName] = useState("");
+  const [themeSelect, setThemeSelect] = useState("");
+  const [customTheme, setCustomTheme] = useState("");
+  const [totalSteps, setTotalSteps] = useState(7);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const isCustomTheme = themeSelect === "Thème personnalisé...";
+  const resolvedTheme = isCustomTheme ? customTheme : themeSelect;
 
   function openModal(type: ModalType) {
     setError(null);
     setUsername("");
     setGameId("");
+    setSessionName("");
+    setThemeSelect("");
+    setCustomTheme("");
+    setTotalSteps(7);
     setModal(type);
   }
 
@@ -59,10 +86,22 @@ export default function Home() {
       setError("Entre un nom d'utilisateur");
       return;
     }
+    if (!sessionName.trim()) {
+      setError("Donne un nom à ta session");
+      return;
+    }
+    if (!resolvedTheme.trim()) {
+      setError("Choisis ou saisis un thème");
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
-      const game = await createGame();
+      const game = await createGame({
+        name: sessionName.trim(),
+        theme: resolvedTheme.trim(),
+        totalSteps,
+      });
       const joined = await joinGame(game.id, username.trim());
       const me = joined.users.find((u) => u.username === username.trim());
       if (me) saveUser(me.id, me.username);
@@ -180,20 +219,86 @@ export default function Home() {
             <DialogTitle className="text-white">Créer une partie</DialogTitle>
           </DialogHeader>
 
-          <div className="space-y-1.5">
-            <Label htmlFor="create-username" className="text-white/80">
-              Pseudo
-            </Label>
-            <Input
-              id="create-username"
-              placeholder="ex. Aragorn"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleCreateGame()}
-              disabled={loading}
-              autoFocus
-              className="border-white/10 bg-white/5 text-white placeholder:text-white/30 focus-visible:border-purple-500 focus-visible:ring-purple-500/20"
-            />
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="create-session-name" className="text-white/80">
+                Nom de la session
+              </Label>
+              <Input
+                id="create-session-name"
+                placeholder="ex. La quête des anciens"
+                value={sessionName}
+                onChange={(e) => setSessionName(e.target.value)}
+                disabled={loading}
+                autoFocus
+                className="border-white/10 bg-white/5 text-white placeholder:text-white/30 focus-visible:border-purple-500 focus-visible:ring-purple-500/20"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-white/80">Thème</Label>
+              <Select
+                value={themeSelect}
+                onValueChange={setThemeSelect}
+                disabled={loading}
+              >
+                <SelectTrigger className="border-white/10 bg-white/5 text-white focus:ring-purple-500/20">
+                  <SelectValue placeholder="Choisir un thème..." />
+                </SelectTrigger>
+                <SelectContent className="border-white/10 bg-[#0d1526] text-white">
+                  {PREDEFINED_THEMES.map((t) => (
+                    <SelectItem key={t} value={t} className="focus:bg-white/10">
+                      {t}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {isCustomTheme && (
+                <Input
+                  placeholder="Décris ta quête personnalisée..."
+                  value={customTheme}
+                  onChange={(e) => setCustomTheme(e.target.value)}
+                  disabled={loading}
+                  className="border-white/10 bg-white/5 text-white placeholder:text-white/30 focus-visible:border-purple-500 focus-visible:ring-purple-500/20"
+                />
+              )}
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="create-steps" className="text-white/80">
+                Nombre d&apos;étapes&nbsp;
+                <span className="text-purple-400 font-semibold">{totalSteps}</span>
+              </Label>
+              <input
+                id="create-steps"
+                type="range"
+                min={5}
+                max={15}
+                value={totalSteps}
+                onChange={(e) => setTotalSteps(Number(e.target.value))}
+                disabled={loading}
+                className="w-full accent-purple-500"
+              />
+              <div className="flex justify-between text-xs text-white/40">
+                <span>5</span>
+                <span>15</span>
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="create-username" className="text-white/80">
+                Ton pseudo
+              </Label>
+              <Input
+                id="create-username"
+                placeholder="ex. Aragorn"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleCreateGame()}
+                disabled={loading}
+                className="border-white/10 bg-white/5 text-white placeholder:text-white/30 focus-visible:border-purple-500 focus-visible:ring-purple-500/20"
+              />
+            </div>
           </div>
 
           {error && (
