@@ -267,7 +267,9 @@ export default function Home() {
             <div className="space-y-1.5">
               <Label htmlFor="create-steps" className="text-white/80">
                 Nombre d&apos;étapes&nbsp;
-                <span className="text-purple-400 font-semibold">{totalSteps}</span>
+                <span className="text-purple-400 font-semibold">
+                  {totalSteps}
+                </span>
               </Label>
               <input
                 id="create-steps"
