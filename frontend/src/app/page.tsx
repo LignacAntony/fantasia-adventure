@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Users, Bot, Shuffle } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -45,12 +45,14 @@ const PREDEFINED_THEMES = [
 
 type ModalType = "create" | "join" | null;
 
-export default function Home() {
+function HomeContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [modal, setModal] = useState<ModalType>(null);
+  const joinId = searchParams.get("join");
+
+  const [modal, setModal] = useState<ModalType>(joinId ? "join" : null);
   const [username, setUsername] = useState("");
-  const [gameId, setGameId] = useState("");
+  const [gameId, setGameId] = useState(joinId ?? "");
   const [sessionName, setSessionName] = useState("");
   const [themeSelect, setThemeSelect] = useState("");
   const [customTheme, setCustomTheme] = useState("");
@@ -60,15 +62,6 @@ export default function Home() {
 
   const isCustomTheme = themeSelect === "Thème personnalisé...";
   const resolvedTheme = isCustomTheme ? customTheme : themeSelect;
-
-  // Auto-open join modal when arriving via a share link (?join=<gameId>)
-  useEffect(() => {
-    const joinId = searchParams.get("join");
-    if (joinId) {
-      setGameId(joinId);
-      setModal("join");
-    }
-  }, [searchParams]);
 
   function openModal(type: ModalType) {
     setError(null);
@@ -411,5 +404,13 @@ export default function Home() {
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+export default function Home() {
+  return (
+    <Suspense>
+      <HomeContent />
+    </Suspense>
   );
 }
