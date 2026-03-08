@@ -6,5 +6,6 @@ export interface IGameRepository {
   create(input: CreateGameBody): Game;
   findById(id: string): Game | undefined;
   addUser(gameId: string, user: User): Game | undefined;
+  removeUser(gameId: string, userId: string): Game | undefined;
   findAll(): Game[];
 }

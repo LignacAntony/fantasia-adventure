@@ -18,7 +18,7 @@ import { Separator } from "@/components/ui/separator";
 import { FeatureCard } from "@/components/feature-card";
 import { Navbar } from "@/components/navbar";
 import { Footer } from "@/components/footer";
-import { createGame, joinGame } from "@/lib/api";
+import { createGame, joinGame, getGame } from "@/lib/api";
 import { AlertCircleIcon } from "lucide-react";
 import {
   Select,
@@ -27,6 +27,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { AVATARS, AVATAR_IDS } from "@/lib/avatars";
+import type { AvatarId } from "@/lib/avatars";
+import { BadgeClasse } from "@/components/badge-classe";
+import { cn } from "@/lib/utils";
 
 const NAV_ITEMS = [
   { label: "Accueil", href: "/" },
@@ -45,18 +49,87 @@ const PREDEFINED_THEMES = [
 
 type ModalType = "create" | "join" | null;
 
+// ─── Avatar selection grid ────────────────────────────────────────────────────
+
+function AvatarGrid({
+  takenAvatars,
+  selectedAvatar,
+  onSelect,
+  disabled,
+}: {
+  takenAvatars: AvatarId[];
+  selectedAvatar: AvatarId | null;
+  onSelect: (id: AvatarId) => void;
+  disabled: boolean;
+}) {
+  return (
+    <div className="space-y-3">
+      <p className="text-sm text-white/60">
+        Choisis ton personnage pour cette aventure.
+      </p>
+      <div className="grid grid-cols-3 gap-2">
+        {AVATAR_IDS.map((id) => {
+          const avatar = AVATARS[id];
+          const taken = takenAvatars.includes(id);
+          const selected = selectedAvatar === id;
+          return (
+            <button
+              key={id}
+              type="button"
+              disabled={taken || disabled}
+              onClick={() => onSelect(id)}
+              className={cn(
+                "flex flex-col items-center gap-2 rounded-lg border p-3 text-center transition",
+                taken
+                  ? "cursor-not-allowed border-white/5 opacity-40"
+                  : selected
+                    ? "border-purple-500 bg-purple-500/20 ring-1 ring-purple-500/50"
+                    : "cursor-pointer border-white/10 bg-white/5 hover:border-white/20 hover:bg-white/10",
+              )}
+            >
+              <BadgeClasse variant={avatar.classe} />
+              <div>
+                <p className="text-sm font-semibold text-white">
+                  {avatar.name}
+                </p>
+                <p className="text-xs text-white/50">{avatar.archetype}</p>
+              </div>
+              {taken && <span className="text-xs text-white/40">Pris</span>}
+            </button>
+          );
+        })}
+      </div>
+      {selectedAvatar && (
+        <div className="space-y-1 rounded-lg border border-white/10 bg-white/5 p-3">
+          <p className="text-xs font-semibold text-emerald-400">
+            ✦ {AVATARS[selectedAvatar].advantage}
+          </p>
+          <p className="text-xs font-semibold text-red-400">
+            ✦ {AVATARS[selectedAvatar].disadvantage}
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Home content ─────────────────────────────────────────────────────────────
+
 function HomeContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const joinId = searchParams.get("join");
 
   const [modal, setModal] = useState<ModalType>(joinId ? "join" : null);
+  const [step, setStep] = useState<1 | 2>(1);
   const [username, setUsername] = useState("");
   const [gameId, setGameId] = useState(joinId ?? "");
   const [sessionName, setSessionName] = useState("");
   const [themeSelect, setThemeSelect] = useState("");
   const [customTheme, setCustomTheme] = useState("");
   const [totalSteps, setTotalSteps] = useState(7);
+  const [selectedAvatar, setSelectedAvatar] = useState<AvatarId | null>(null);
+  const [takenAvatars, setTakenAvatars] = useState<AvatarId[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -71,6 +144,9 @@ function HomeContent() {
     setThemeSelect("");
     setCustomTheme("");
     setTotalSteps(7);
+    setStep(1);
+    setSelectedAvatar(null);
+    setTakenAvatars([]);
     setModal(type);
   }
 
@@ -78,13 +154,17 @@ function HomeContent() {
     if (loading) return;
     setModal(null);
     setError(null);
+    setStep(1);
+    setSelectedAvatar(null);
   }
 
   function saveUser(userId: string, username: string) {
     localStorage.setItem("fantasia_user", JSON.stringify({ userId, username }));
   }
 
-  async function handleCreateGame() {
+  // ── CREATE — step 1: validate → step 2 ──────────────────────────────────────
+
+  function handleCreateNext() {
     if (!username.trim()) {
       setError("Entre un nom d'utilisateur");
       return;
@@ -97,6 +177,17 @@ function HomeContent() {
       setError("Choisis ou saisis un thème");
       return;
     }
+    setError(null);
+    setStep(2);
+  }
+
+  // ── CREATE — step 2: pick avatar → create + join ─────────────────────────────
+
+  async function handleCreateGame() {
+    if (!selectedAvatar) {
+      setError("Choisis un avatar");
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
@@ -105,7 +196,7 @@ function HomeContent() {
         theme: resolvedTheme.trim(),
         totalSteps,
       });
-      const joined = await joinGame(game.id, username.trim());
+      const joined = await joinGame(game.id, username.trim(), selectedAvatar);
       const me = joined.users.find((u) => u.username === username.trim());
       if (me) saveUser(me.id, me.username);
       router.push(`/game/${game.id}`);
@@ -115,7 +206,9 @@ function HomeContent() {
     }
   }
 
-  async function handleJoinGame() {
+  // ── JOIN — step 1: validate + fetch taken avatars → step 2 ──────────────────
+
+  async function handleJoinNext() {
     if (!username.trim()) {
       setError("Entre un nom d'utilisateur");
       return;
@@ -127,7 +220,32 @@ function HomeContent() {
     setLoading(true);
     setError(null);
     try {
-      const joined = await joinGame(gameId.trim(), username.trim());
+      const game = await getGame(gameId.trim());
+      const taken = game.users.map((u) => u.avatar as AvatarId);
+      setTakenAvatars(taken);
+      setStep(2);
+    } catch {
+      setError("Partie introuvable ou erreur serveur.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // ── JOIN — step 2: pick avatar → join ────────────────────────────────────────
+
+  async function handleJoinGame() {
+    if (!selectedAvatar) {
+      setError("Choisis un avatar");
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      const joined = await joinGame(
+        gameId.trim(),
+        username.trim(),
+        selectedAvatar,
+      );
       const me = joined.users.find((u) => u.username === username.trim());
       if (me) saveUser(me.id, me.username);
       router.push(`/game/${gameId.trim()}`);
@@ -212,99 +330,119 @@ function HomeContent() {
         copyright={`© ${new Date().getFullYear()} FantasIA Adventure`}
       />
 
-      {/* Create dialog */}
+      {/* ── Create dialog ──────────────────────────────────────────────────────── */}
       <Dialog
         open={modal === "create"}
         onOpenChange={(open) => !open && closeModal()}
       >
-        <DialogContent className="border-white/10 bg-[#080e20] text-white sm:max-w-sm">
+        <DialogContent
+          className={cn(
+            "border-white/10 bg-[#080e20] text-white",
+            step === 2 ? "sm:max-w-lg" : "sm:max-w-sm",
+          )}
+        >
           <DialogHeader>
-            <DialogTitle className="text-white">Créer une partie</DialogTitle>
+            <DialogTitle className="text-white">
+              {step === 1 ? "Créer une partie" : "Choisir ton avatar"}
+            </DialogTitle>
           </DialogHeader>
 
-          <div className="space-y-3">
-            <div className="space-y-1.5">
-              <Label htmlFor="create-session-name" className="text-white/80">
-                Nom de la session
-              </Label>
-              <Input
-                id="create-session-name"
-                placeholder="ex. La quête des anciens"
-                value={sessionName}
-                onChange={(e) => setSessionName(e.target.value)}
-                disabled={loading}
-                autoFocus
-                className="border-white/10 bg-white/5 text-white placeholder:text-white/30 focus-visible:border-purple-500 focus-visible:ring-purple-500/20"
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <Label className="text-white/80">Thème</Label>
-              <Select
-                value={themeSelect}
-                onValueChange={setThemeSelect}
-                disabled={loading}
-              >
-                <SelectTrigger className="border-white/10 bg-white/5 text-white focus:ring-purple-500/20">
-                  <SelectValue placeholder="Choisir un thème..." />
-                </SelectTrigger>
-                <SelectContent className="border-white/10 bg-[#0d1526] text-white">
-                  {PREDEFINED_THEMES.map((t) => (
-                    <SelectItem key={t} value={t} className="focus:bg-white/10">
-                      {t}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {isCustomTheme && (
+          {step === 1 ? (
+            <div className="space-y-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="create-session-name" className="text-white/80">
+                  Nom de la session
+                </Label>
                 <Input
-                  placeholder="Décris ta quête personnalisée..."
-                  value={customTheme}
-                  onChange={(e) => setCustomTheme(e.target.value)}
+                  id="create-session-name"
+                  placeholder="ex. La quête des anciens"
+                  value={sessionName}
+                  onChange={(e) => setSessionName(e.target.value)}
+                  disabled={loading}
+                  autoFocus
+                  className="border-white/10 bg-white/5 text-white placeholder:text-white/30 focus-visible:border-purple-500 focus-visible:ring-purple-500/20"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-white/80">Thème</Label>
+                <Select
+                  value={themeSelect}
+                  onValueChange={setThemeSelect}
+                  disabled={loading}
+                >
+                  <SelectTrigger className="border-white/10 bg-white/5 text-white focus:ring-purple-500/20">
+                    <SelectValue placeholder="Choisir un thème..." />
+                  </SelectTrigger>
+                  <SelectContent className="border-white/10 bg-[#0d1526] text-white">
+                    {PREDEFINED_THEMES.map((t) => (
+                      <SelectItem
+                        key={t}
+                        value={t}
+                        className="focus:bg-white/10"
+                      >
+                        {t}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {isCustomTheme && (
+                  <Input
+                    placeholder="Décris ta quête personnalisée..."
+                    value={customTheme}
+                    onChange={(e) => setCustomTheme(e.target.value)}
+                    disabled={loading}
+                    className="border-white/10 bg-white/5 text-white placeholder:text-white/30 focus-visible:border-purple-500 focus-visible:ring-purple-500/20"
+                  />
+                )}
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="create-steps" className="text-white/80">
+                  Nombre d&apos;étapes&nbsp;
+                  <span className="font-semibold text-purple-400">
+                    {totalSteps}
+                  </span>
+                </Label>
+                <input
+                  id="create-steps"
+                  type="range"
+                  min={5}
+                  max={15}
+                  value={totalSteps}
+                  onChange={(e) => setTotalSteps(Number(e.target.value))}
+                  disabled={loading}
+                  className="w-full accent-purple-500"
+                />
+                <div className="flex justify-between text-xs text-white/40">
+                  <span>5</span>
+                  <span>15</span>
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="create-username" className="text-white/80">
+                  Ton pseudo
+                </Label>
+                <Input
+                  id="create-username"
+                  placeholder="ex. Aragorn"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleCreateNext()}
                   disabled={loading}
                   className="border-white/10 bg-white/5 text-white placeholder:text-white/30 focus-visible:border-purple-500 focus-visible:ring-purple-500/20"
                 />
-              )}
-            </div>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="create-steps" className="text-white/80">
-                Nombre d&apos;étapes&nbsp;
-                <span className="text-purple-400 font-semibold">
-                  {totalSteps}
-                </span>
-              </Label>
-              <input
-                id="create-steps"
-                type="range"
-                min={5}
-                max={15}
-                value={totalSteps}
-                onChange={(e) => setTotalSteps(Number(e.target.value))}
-                disabled={loading}
-                className="w-full accent-purple-500"
-              />
-              <div className="flex justify-between text-xs text-white/40">
-                <span>5</span>
-                <span>15</span>
               </div>
             </div>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="create-username" className="text-white/80">
-                Ton pseudo
-              </Label>
-              <Input
-                id="create-username"
-                placeholder="ex. Aragorn"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleCreateGame()}
-                disabled={loading}
-                className="border-white/10 bg-white/5 text-white placeholder:text-white/30 focus-visible:border-purple-500 focus-visible:ring-purple-500/20"
-              />
-            </div>
-          </div>
+          ) : (
+            <AvatarGrid
+              takenAvatars={takenAvatars}
+              selectedAvatar={selectedAvatar}
+              onSelect={setSelectedAvatar}
+              disabled={loading}
+            />
+          )}
 
           {error && (
             <Alert variant="destructive">
@@ -314,68 +452,107 @@ function HomeContent() {
           )}
 
           <DialogFooter>
-            <Button
-              variant="ghost"
-              onClick={closeModal}
-              disabled={loading}
-              className="text-white/60 hover:text-white hover:bg-white/10"
-            >
-              Annuler
-            </Button>
-            <Button
-              variant="purple"
-              onClick={handleCreateGame}
-              disabled={loading}
-            >
-              {loading ? "Création..." : "Créer"}
-            </Button>
+            {step === 2 ? (
+              <>
+                <Button
+                  variant="ghost"
+                  onClick={() => {
+                    setStep(1);
+                    setError(null);
+                  }}
+                  disabled={loading}
+                  className="text-white/60 hover:bg-white/10 hover:text-white"
+                >
+                  Retour
+                </Button>
+                <Button
+                  variant="purple"
+                  onClick={handleCreateGame}
+                  disabled={loading || !selectedAvatar}
+                >
+                  {loading ? "Création..." : "Créer"}
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button
+                  variant="ghost"
+                  onClick={closeModal}
+                  disabled={loading}
+                  className="text-white/60 hover:bg-white/10 hover:text-white"
+                >
+                  Annuler
+                </Button>
+                <Button
+                  variant="purple"
+                  onClick={handleCreateNext}
+                  disabled={loading}
+                >
+                  Suivant
+                </Button>
+              </>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Join dialog */}
+      {/* ── Join dialog ────────────────────────────────────────────────────────── */}
       <Dialog
         open={modal === "join"}
         onOpenChange={(open) => !open && closeModal()}
       >
-        <DialogContent className="border-white/10 bg-[#080e20] text-white sm:max-w-sm">
+        <DialogContent
+          className={cn(
+            "border-white/10 bg-[#080e20] text-white",
+            step === 2 ? "sm:max-w-lg" : "sm:max-w-sm",
+          )}
+        >
           <DialogHeader>
             <DialogTitle className="text-white">
-              Rejoindre une partie
+              {step === 1 ? "Rejoindre une partie" : "Choisir ton avatar"}
             </DialogTitle>
           </DialogHeader>
 
-          <div className="space-y-4">
-            <div className="space-y-1.5">
-              <Label htmlFor="join-username" className="text-white/80">
-                Pseudo
-              </Label>
-              <Input
-                id="join-username"
-                placeholder="ex. Aragorn"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                disabled={loading}
-                autoFocus
-                className="border-white/10 bg-white/5 text-white placeholder:text-white/30 focus-visible:border-purple-500 focus-visible:ring-purple-500/20"
-              />
+          {step === 1 ? (
+            <div className="space-y-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="join-username" className="text-white/80">
+                  Pseudo
+                </Label>
+                <Input
+                  id="join-username"
+                  placeholder="ex. Aragorn"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  disabled={loading}
+                  autoFocus
+                  className="border-white/10 bg-white/5 text-white placeholder:text-white/30 focus-visible:border-purple-500 focus-visible:ring-purple-500/20"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="join-game-id" className="text-white/80">
+                  ID de la partie
+                </Label>
+                <Input
+                  id="join-game-id"
+                  placeholder="ex. abc123xyz"
+                  value={gameId}
+                  onChange={(e) => setGameId(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleJoinNext()}
+                  readOnly={!!searchParams.get("join")}
+                  disabled={loading}
+                  className="border-white/10 bg-white/5 text-white placeholder:text-white/30 focus-visible:border-purple-500 focus-visible:ring-purple-500/20"
+                />
+              </div>
             </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="join-game-id" className="text-white/80">
-                ID de la partie
-              </Label>
-              <Input
-                id="join-game-id"
-                placeholder="ex. abc123xyz"
-                value={gameId}
-                onChange={(e) => setGameId(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleJoinGame()}
-                readOnly={!!searchParams.get("join")}
-                disabled={loading}
-                className="border-white/10 bg-white/5 text-white placeholder:text-white/30 focus-visible:border-purple-500 focus-visible:ring-purple-500/20"
-              />
-            </div>
-          </div>
+          ) : (
+            <AvatarGrid
+              takenAvatars={takenAvatars}
+              selectedAvatar={selectedAvatar}
+              onSelect={setSelectedAvatar}
+              disabled={loading}
+            />
+          )}
 
           {error && (
             <Alert variant="destructive">
@@ -385,21 +562,46 @@ function HomeContent() {
           )}
 
           <DialogFooter>
-            <Button
-              variant="ghost"
-              onClick={closeModal}
-              disabled={loading}
-              className="text-white/60 hover:text-white hover:bg-white/10"
-            >
-              Annuler
-            </Button>
-            <Button
-              variant="outline"
-              onClick={handleJoinGame}
-              disabled={loading}
-            >
-              {loading ? "Connexion..." : "Rejoindre"}
-            </Button>
+            {step === 2 ? (
+              <>
+                <Button
+                  variant="ghost"
+                  onClick={() => {
+                    setStep(1);
+                    setError(null);
+                  }}
+                  disabled={loading}
+                  className="text-white/60 hover:bg-white/10 hover:text-white"
+                >
+                  Retour
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={handleJoinGame}
+                  disabled={loading || !selectedAvatar}
+                >
+                  {loading ? "Connexion..." : "Rejoindre"}
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button
+                  variant="ghost"
+                  onClick={closeModal}
+                  disabled={loading}
+                  className="text-white/60 hover:bg-white/10 hover:text-white"
+                >
+                  Annuler
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={handleJoinNext}
+                  disabled={loading}
+                >
+                  {loading ? "Chargement..." : "Suivant"}
+                </Button>
+              </>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>

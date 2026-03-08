@@ -28,8 +28,8 @@ export class AddUserToGameUsecase<SuccessType, NotFoundType, InvalidArgsType> {
       return this.presenter.invalidArgs();
     }
     const { id } = parsedParams.data;
-    const { username } = parsedBody.data;
-    const game = this.repository.addUser(id, { id: v4(), username });
+    const { username, avatar } = parsedBody.data;
+    const game = this.repository.addUser(id, { id: v4(), username, avatar });
     if (!game) {
       console.log(`[AddUserToGameUsecase] Game not found: ${id}`);
       return this.presenter.notFound();
