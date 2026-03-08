@@ -1,11 +1,17 @@
 import { z } from "zod";
 import type { Server, Socket } from "socket.io";
 import { gameRepository } from "./repository/game.repository.js";
+import type { User } from "@/types/user.js";
 
 const joinLeaveSchema = z.object({
   gameId: z.string().uuid(),
   userId: z.string().min(1),
   username: z.string().min(1),
+});
+
+const playerJoinSchema = z.object({
+  gameId: z.string().uuid(),
+  userId: z.string().uuid(),
 });
 
 const messageSchema = z.object({
@@ -21,10 +27,83 @@ const choiceSchema = z.object({
   choice: z.string().min(1),
 });
 
+/** Track who is currently present in each lobby: gameId → Set<userId> */
+const lobbyPresence = new Map<string, Set<string>>();
+
+function getLobbyState(
+  gameId: string,
+): { players: User[]; hostId: string | null } | null {
+  const game = gameRepository.findById(gameId);
+  if (!game) return null;
+  const presence = lobbyPresence.get(gameId) ?? new Set<string>();
+  const presentPlayers = game.users.filter((u) => presence.has(u.id));
+  const hostId =
+    game.hostId && presence.has(game.hostId)
+      ? game.hostId
+      : (game.users.find((u) => presence.has(u.id))?.id ?? null);
+  return { players: presentPlayers, hostId };
+}
+
+function addPresence(gameId: string, userId: string): void {
+  if (!lobbyPresence.has(gameId)) lobbyPresence.set(gameId, new Set());
+  lobbyPresence.get(gameId)!.add(userId);
+}
+
+function removePresence(gameId: string, userId: string): void {
+  lobbyPresence.get(gameId)?.delete(userId);
+}
+
 export function registerGameSocketHandlers(io: Server): void {
   io.on("connection", (socket: Socket) => {
     console.log(`[Socket] connected: ${socket.id}`);
 
+    /** Lobby: player joins the socket room and triggers a lobby:update broadcast */
+    socket.on("player:join", (payload: unknown) => {
+      const result = playerJoinSchema.safeParse(payload);
+      if (!result.success) {
+        socket.emit("game:error", {
+          message: "Invalid payload",
+          errors: result.error.issues,
+        });
+        return;
+      }
+      const { gameId, userId } = result.data;
+
+      const game = gameRepository.findById(gameId);
+      if (!game) {
+        socket.emit("game:error", { message: "Game not found" });
+        return;
+      }
+
+      // Track presence and store for disconnect cleanup
+      addPresence(gameId, userId);
+      socket.data.gameId = gameId;
+      socket.data.userId = userId;
+
+      socket.join(gameId);
+      console.log(`[Socket] ${userId} joined lobby ${gameId}`);
+
+      const state = getLobbyState(gameId);
+      if (state) io.to(gameId).emit("lobby:update", state);
+    });
+
+    /** Lobby: player leaves (explicit — SPA navigation) */
+    socket.on("player:leave", (payload: unknown) => {
+      const result = playerJoinSchema.safeParse(payload);
+      if (!result.success) return;
+      const { gameId, userId } = result.data;
+
+      removePresence(gameId, userId);
+      socket.leave(gameId);
+      socket.data.gameId = undefined;
+      socket.data.userId = undefined;
+      console.log(`[Socket] ${userId} left lobby ${gameId}`);
+
+      const state = getLobbyState(gameId);
+      if (state) io.to(gameId).emit("lobby:update", state);
+    });
+
+    // Legacy game events (kept for future game phase)
     socket.on("game:join", (payload: unknown) => {
       const result = joinLeaveSchema.safeParse(payload);
       if (!result.success) {
@@ -35,13 +114,11 @@ export function registerGameSocketHandlers(io: Server): void {
         return;
       }
       const { gameId, userId, username } = result.data;
-
       const game = gameRepository.findById(gameId);
       if (!game) {
         socket.emit("game:error", { message: "Game not found" });
         return;
       }
-
       socket.join(gameId);
       console.log(`[Socket] ${username} (${userId}) joined room ${gameId}`);
       socket
@@ -51,15 +128,8 @@ export function registerGameSocketHandlers(io: Server): void {
 
     socket.on("game:leave", (payload: unknown) => {
       const result = joinLeaveSchema.safeParse(payload);
-      if (!result.success) {
-        socket.emit("game:error", {
-          message: "Invalid payload",
-          errors: result.error.issues,
-        });
-        return;
-      }
+      if (!result.success) return;
       const { gameId, userId, username } = result.data;
-
       socket.leave(gameId);
       console.log(`[Socket] ${username} (${userId}) left room ${gameId}`);
       io.to(gameId).emit("game:player-left", { gameId, userId, username });
@@ -75,12 +145,10 @@ export function registerGameSocketHandlers(io: Server): void {
         return;
       }
       const { gameId, userId, username, text } = result.data;
-
       if (!socket.rooms.has(gameId)) {
         socket.emit("game:error", { message: "You are not in this game room" });
         return;
       }
-
       console.log(
         `[Socket] ${username} (${userId}) sent message in ${gameId}: ${text}`,
       );
@@ -97,18 +165,25 @@ export function registerGameSocketHandlers(io: Server): void {
         return;
       }
       const { gameId, userId, choice } = result.data;
-
       if (!socket.rooms.has(gameId)) {
         socket.emit("game:error", { message: "You are not in this game room" });
         return;
       }
-
       console.log(`[Socket] ${userId} made choice in ${gameId}: ${choice}`);
       io.to(gameId).emit("game:narration", { gameId, userId, choice });
     });
 
     socket.on("disconnect", () => {
       console.log(`[Socket] disconnected: ${socket.id}`);
+      const { gameId, userId } = socket.data as {
+        gameId?: string;
+        userId?: string;
+      };
+      if (!gameId || !userId) return;
+      console.log(`[Socket] cleanup: ${userId} left presence of ${gameId}`);
+      removePresence(gameId, userId);
+      const state = getLobbyState(gameId);
+      if (state) io.to(gameId).emit("lobby:update", state);
     });
   });
 }

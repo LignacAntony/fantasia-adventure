@@ -1,9 +1,13 @@
 import { z } from "zod";
+import { AVATAR_IDS } from "@/types/avatar.js";
 
 export const gameIdParamsSchema = z.object({ id: z.string().uuid() });
 export type GameIdParams = z.infer<typeof gameIdParamsSchema>;
 
-export const addUserBodySchema = z.object({ username: z.string().min(1) });
+export const addUserBodySchema = z.object({
+  username: z.string().min(1),
+  avatar: z.enum(AVATAR_IDS),
+});
 export type AddUserBody = z.infer<typeof addUserBodySchema>;
 
 export const createGameBodySchema = z.object({

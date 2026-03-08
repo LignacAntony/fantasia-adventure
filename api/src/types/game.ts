@@ -9,5 +9,6 @@ export interface Game {
   totalSteps: number;
   currentStep: number;
   status: GameStatus;
+  hostId: string | null;
   users: User[];
 }

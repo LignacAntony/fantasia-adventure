@@ -1,6 +1,14 @@
+import type { AvatarId } from "./avatars";
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 export type GameStatus = "lobby" | "en_cours" | "terminée" | "abandonnée";
+
+export type Player = {
+  id: string;
+  username: string;
+  avatar: AvatarId;
+};
 
 export type Game = {
   id: string;
@@ -9,7 +17,8 @@ export type Game = {
   totalSteps: number;
   currentStep: number;
   status: GameStatus;
-  users: { id: string; username: string }[];
+  hostId: string | null;
+  users: Player[];
 };
 
 export type CreateGameInput = {
@@ -28,14 +37,21 @@ export async function createGame(input: CreateGameInput): Promise<Game> {
   return res.json();
 }
 
+export async function getGame(gameId: string): Promise<Game> {
+  const res = await fetch(`${API_URL}/games/${gameId}`);
+  if (!res.ok) throw new Error("Game not found");
+  return res.json();
+}
+
 export async function joinGame(
   gameId: string,
   username: string,
+  avatar: AvatarId,
 ): Promise<Game> {
   const res = await fetch(`${API_URL}/games/${gameId}/users`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ username }),
+    body: JSON.stringify({ username, avatar }),
   });
   if (!res.ok) throw new Error("Failed to join game");
   return res.json();

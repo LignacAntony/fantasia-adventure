@@ -7,6 +7,9 @@ const defaultInput = {
   totalSteps: 5,
 };
 
+const alice = { id: "user-1", username: "Alice", avatar: "elfe" };
+const bob = { id: "user-2", username: "Bob", avatar: "nain" };
+
 let repo: GameRepository;
 
 beforeEach(() => {
@@ -29,10 +32,11 @@ describe("create()", () => {
     expect(game.totalSteps).toBe(5);
   });
 
-  it("should return a game with status lobby and currentStep 0", () => {
+  it("should return a game with status lobby, currentStep 0 and hostId null", () => {
     const game = repo.create(defaultInput);
     expect(game.status).toBe("lobby");
     expect(game.currentStep).toBe(0);
+    expect(game.hostId).toBeNull();
   });
 
   it("should return a game with an empty users array", () => {
@@ -58,26 +62,74 @@ describe("findById()", () => {
 });
 
 describe("addUser()", () => {
-  it("should add a user to the game", () => {
+  it("should add a user with avatar to the game", () => {
     const game = repo.create(defaultInput);
-    const user = { id: "user-1", username: "Alice" };
-    const updated = repo.addUser(game.id, user);
-    expect(updated?.users).toContainEqual(user);
+    const updated = repo.addUser(game.id, alice);
+    expect(updated?.users).toContainEqual(alice);
+  });
+
+  it("should set hostId to the first player's id", () => {
+    const game = repo.create(defaultInput);
+    repo.addUser(game.id, alice);
+    expect(game.hostId).toBe(alice.id);
+  });
+
+  it("should not change hostId when a second player joins", () => {
+    const game = repo.create(defaultInput);
+    repo.addUser(game.id, alice);
+    repo.addUser(game.id, bob);
+    expect(game.hostId).toBe(alice.id);
   });
 
   it("should return undefined when game does not exist", () => {
-    const result = repo.addUser("non-existent-id", {
-      id: "user-1",
-      username: "Alice",
-    });
+    const result = repo.addUser("non-existent-id", alice);
     expect(result).toBeUndefined();
   });
 
   it("should support multiple users", () => {
     const game = repo.create(defaultInput);
-    repo.addUser(game.id, { id: "user-1", username: "Alice" });
-    repo.addUser(game.id, { id: "user-2", username: "Bob" });
+    repo.addUser(game.id, alice);
+    repo.addUser(game.id, bob);
     expect(game.users).toHaveLength(2);
+  });
+});
+
+describe("removeUser()", () => {
+  it("should remove the user from the game", () => {
+    const game = repo.create(defaultInput);
+    repo.addUser(game.id, alice);
+    repo.addUser(game.id, bob);
+    repo.removeUser(game.id, alice.id);
+    expect(game.users).not.toContainEqual(alice);
+    expect(game.users).toContainEqual(bob);
+  });
+
+  it("should reassign hostId to the next player when host leaves", () => {
+    const game = repo.create(defaultInput);
+    repo.addUser(game.id, alice);
+    repo.addUser(game.id, bob);
+    repo.removeUser(game.id, alice.id);
+    expect(game.hostId).toBe(bob.id);
+  });
+
+  it("should set hostId to null when the last player leaves", () => {
+    const game = repo.create(defaultInput);
+    repo.addUser(game.id, alice);
+    repo.removeUser(game.id, alice.id);
+    expect(game.hostId).toBeNull();
+    expect(game.users).toHaveLength(0);
+  });
+
+  it("should not change hostId when a non-host player leaves", () => {
+    const game = repo.create(defaultInput);
+    repo.addUser(game.id, alice);
+    repo.addUser(game.id, bob);
+    repo.removeUser(game.id, bob.id);
+    expect(game.hostId).toBe(alice.id);
+  });
+
+  it("should return undefined when game does not exist", () => {
+    expect(repo.removeUser("non-existent-id", alice.id)).toBeUndefined();
   });
 });
 

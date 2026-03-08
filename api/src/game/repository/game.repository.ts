@@ -15,6 +15,7 @@ export class GameRepository implements IGameRepository {
       totalSteps: input.totalSteps,
       currentStep: 0,
       status: "lobby",
+      hostId: null,
       users: [],
     };
     db.push(game);
@@ -29,6 +30,17 @@ export class GameRepository implements IGameRepository {
     const game = this.findById(gameId);
     if (!game) return undefined;
     game.users.push(user);
+    if (!game.hostId) game.hostId = user.id; // first player becomes host
+    return game;
+  }
+
+  removeUser(gameId: string, userId: string): Game | undefined {
+    const game = this.findById(gameId);
+    if (!game) return undefined;
+    game.users = game.users.filter((u) => u.id !== userId);
+    if (game.hostId === userId) {
+      game.hostId = game.users[0]?.id ?? null;
+    }
     return game;
   }
 
