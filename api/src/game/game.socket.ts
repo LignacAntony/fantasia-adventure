@@ -121,7 +121,9 @@ export function registerGameSocketHandlers(io: Server): void {
       }
       socket.join(gameId);
       console.log(`[Socket] ${username} (${userId}) joined room ${gameId}`);
-      socket.to(gameId).emit("game:player-joined", { gameId, userId, username });
+      socket
+        .to(gameId)
+        .emit("game:player-joined", { gameId, userId, username });
     });
 
     socket.on("game:leave", (payload: unknown) => {
@@ -147,7 +149,9 @@ export function registerGameSocketHandlers(io: Server): void {
         socket.emit("game:error", { message: "You are not in this game room" });
         return;
       }
-      console.log(`[Socket] ${username} (${userId}) sent message in ${gameId}: ${text}`);
+      console.log(
+        `[Socket] ${username} (${userId}) sent message in ${gameId}: ${text}`,
+      );
       io.to(gameId).emit("game:message", { gameId, userId, username, text });
     });
 

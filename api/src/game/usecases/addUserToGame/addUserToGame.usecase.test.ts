@@ -71,7 +71,10 @@ describe("AddUserToGameUsecase", () => {
 
   it("should support multiple users", async () => {
     const game = repo.create(gameInput);
-    await usecase.execute({ id: game.id }, { username: "Alice", avatar: "elfe" });
+    await usecase.execute(
+      { id: game.id },
+      { username: "Alice", avatar: "elfe" },
+    );
     await usecase.execute({ id: game.id }, { username: "Bob", avatar: "nain" });
     expect(game.users).toHaveLength(2);
   });

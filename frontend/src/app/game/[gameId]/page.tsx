@@ -188,7 +188,9 @@ export default function GamePage() {
           {isHost ? (
             <div className="space-y-2">
               <Button variant="purple" className="w-full" disabled={!canStart}>
-                {canStart ? "Lancer la partie" : "En attente d'un autre joueur..."}
+                {canStart
+                  ? "Lancer la partie"
+                  : "En attente d'un autre joueur..."}
               </Button>
               {!canStart && (
                 <p className="text-center text-xs text-white/40">
