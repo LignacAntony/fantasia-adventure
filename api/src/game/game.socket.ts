@@ -3,12 +3,7 @@ import type { Server, Socket } from "socket.io";
 import { gameRepository } from "./repository/game.repository.js";
 import type { User } from "@/types/user.js";
 import { generateNarration } from "@/00_infra/openai/ai.service.js";
-
-const joinLeaveSchema = z.object({
-  gameId: z.string().uuid(),
-  userId: z.string().min(1),
-  username: z.string().min(1),
-});
+import type { NarrationHistoryEntry } from "@/00_infra/openai/ai.types.js";
 
 const playerJoinSchema = z.object({
   gameId: z.string().uuid(),
@@ -20,14 +15,7 @@ const gameStartSchema = z.object({
   userId: z.string().uuid(),
 });
 
-const messageSchema = z.object({
-  gameId: z.string().uuid(),
-  userId: z.string().min(1),
-  username: z.string().min(1),
-  text: z.string().min(1),
-});
-
-const choiceSchema = z.object({
+const playerChoiceSchema = z.object({
   gameId: z.string().uuid(),
   userId: z.string().min(1),
   choice: z.string().min(1),
@@ -35,6 +23,9 @@ const choiceSchema = z.object({
 
 /** Track who is currently present in each lobby: gameId → Set<userId> */
 const lobbyPresence = new Map<string, Set<string>>();
+
+/** Track pending choices for the current step: gameId → Map<userId, choice> */
+const pendingChoices = new Map<string, Map<string, string>>();
 
 function getLobbyState(
   gameId: string,
@@ -59,6 +50,125 @@ function removePresence(gameId: string, userId: string): void {
   lobbyPresence.get(gameId)?.delete(userId);
 }
 
+function getPresentPlayers(gameId: string): User[] {
+  const game = gameRepository.findById(gameId);
+  if (!game) return [];
+  const presence = lobbyPresence.get(gameId) ?? new Set<string>();
+  return game.users.filter((u) => presence.has(u.id));
+}
+
+/**
+ * Generates the next step narration once all players have submitted their choices.
+ * Uses majority vote for collective steps.
+ */
+async function generateNextStep(io: Server, gameId: string): Promise<void> {
+  const game = gameRepository.findById(gameId);
+  if (!game || game.status !== "en_cours") return;
+
+  const choices = pendingChoices.get(gameId);
+  if (!choices) return;
+
+  const presentPlayers = getPresentPlayers(gameId);
+  const currentNarration = game.currentNarration;
+
+  // Build history entry from the current step choices
+  let historyEntry: NarrationHistoryEntry;
+
+  if (currentNarration?.stepType === "collective") {
+    // Majority vote: count votes, pick winner (first submitted wins ties)
+    const voteCounts = new Map<string, number>();
+    for (const choice of choices.values()) {
+      voteCounts.set(choice, (voteCounts.get(choice) ?? 0) + 1);
+    }
+    const winner = [...voteCounts.entries()].sort((a, b) => b[1] - a[1])[0]![0];
+
+    historyEntry = {
+      stepType: "collective",
+      narration: currentNarration.narration,
+      choices: presentPlayers.map((p) => ({
+        playerId: p.id,
+        playerName: p.username,
+        avatar: p.avatar,
+        choice: winner,
+      })),
+    };
+  } else {
+    // Individual: each player's own choice
+    historyEntry = {
+      stepType: "individual",
+      narration: currentNarration?.narration ?? "",
+      choices: presentPlayers.map((p) => ({
+        playerId: p.id,
+        playerName: p.username,
+        avatar: p.avatar,
+        choice: choices.get(p.id) ?? "",
+      })),
+    };
+  }
+
+  const nextStep = game.currentStep + 1;
+
+  // Notify everyone: loading screen
+  io.to(gameId).emit("game:starting", {
+    currentStep: nextStep,
+    totalSteps: game.totalSteps,
+  });
+
+  // Clear pending choices before the async call
+  pendingChoices.delete(gameId);
+
+  console.log(
+    `[Socket] Generating step ${nextStep} narration for game ${gameId}…`,
+  );
+
+  try {
+    const updatedHistory = [...game.history, historyEntry];
+
+    const narration = await generateNarration({
+      players: presentPlayers.map((u) => ({
+        id: u.id,
+        username: u.username,
+        avatar: u.avatar,
+      })),
+      theme: game.theme,
+      totalSteps: game.totalSteps,
+      currentStep: nextStep,
+      history: updatedHistory,
+    });
+
+    game.currentStep = nextStep;
+    game.currentNarration = narration;
+    game.history = updatedHistory;
+
+    const payload =
+      narration.stepType === "collective"
+        ? {
+            stepType: "collective" as const,
+            narration: narration.narration,
+            choices: narration.choices,
+            currentStep: nextStep,
+            totalSteps: game.totalSteps,
+          }
+        : {
+            stepType: "individual" as const,
+            narration: narration.narration,
+            suggestions: narration.suggestions,
+            currentStep: nextStep,
+            totalSteps: game.totalSteps,
+          };
+
+    io.to(gameId).emit("game:started", payload);
+    console.log(`[Socket] Step ${nextStep} ready for game ${gameId}`);
+  } catch (error) {
+    console.error(`[Socket] Failed to generate step ${nextStep}:`, error);
+    // Restore pending choices so the step can be retried
+    pendingChoices.set(gameId, choices);
+    io.to(gameId).emit("game:error", {
+      message: "Impossible de générer la narration suivante, réessaie.",
+    });
+  }
+}
+
 export function registerGameSocketHandlers(io: Server): void {
   io.on("connection", (socket: Socket) => {
     console.log(`[Socket] connected: ${socket.id}`);
@@ -81,7 +191,6 @@ export function registerGameSocketHandlers(io: Server): void {
         return;
       }
 
-      // Track presence and store for disconnect cleanup
       addPresence(gameId, userId);
       socket.data.gameId = gameId;
       socket.data.userId = userId;
@@ -136,7 +245,6 @@ export function registerGameSocketHandlers(io: Server): void {
         return;
       }
 
-      // Only include players currently present in the lobby
       const presence = lobbyPresence.get(gameId) ?? new Set<string>();
       const presentPlayers = game.users.filter((u) => presence.has(u.id));
       if (presentPlayers.length < 2) {
@@ -146,11 +254,9 @@ export function registerGameSocketHandlers(io: Server): void {
         return;
       }
 
-      // Transition → en_cours
       game.status = "en_cours";
       game.currentStep = 1;
 
-      // Notify everyone: show loading screen
       io.to(gameId).emit("game:starting", {
         currentStep: 1,
         totalSteps: game.totalSteps,
@@ -173,17 +279,27 @@ export function registerGameSocketHandlers(io: Server): void {
 
         game.currentNarration = narration;
 
-        io.to(gameId).emit("game:started", {
-          narration: narration.narration,
-          suggestions: narration.suggestions,
-          currentStep: 1,
-          totalSteps: game.totalSteps,
-        });
+        const payload =
+          narration.stepType === "collective"
+            ? {
+                stepType: "collective" as const,
+                narration: narration.narration,
+                choices: narration.choices,
+                currentStep: 1,
+                totalSteps: game.totalSteps,
+              }
+            : {
+                stepType: "individual" as const,
+                narration: narration.narration,
+                suggestions: narration.suggestions,
+                currentStep: 1,
+                totalSteps: game.totalSteps,
+              };
 
+        io.to(gameId).emit("game:started", payload);
         console.log(`[Socket] Narration ready for game ${gameId}`);
       } catch (error) {
         console.error("[Socket] Failed to generate initial narration:", error);
-        // Rollback
         game.status = "lobby";
         game.currentStep = 0;
         io.to(gameId).emit("game:error", {
@@ -192,60 +308,9 @@ export function registerGameSocketHandlers(io: Server): void {
       }
     });
 
-    // Legacy game events (kept for future game phase)
-    socket.on("game:join", (payload: unknown) => {
-      const result = joinLeaveSchema.safeParse(payload);
-      if (!result.success) {
-        socket.emit("game:error", {
-          message: "Invalid payload",
-          errors: result.error.issues,
-        });
-        return;
-      }
-      const { gameId, userId, username } = result.data;
-      const game = gameRepository.findById(gameId);
-      if (!game) {
-        socket.emit("game:error", { message: "Game not found" });
-        return;
-      }
-      socket.join(gameId);
-      console.log(`[Socket] ${username} (${userId}) joined room ${gameId}`);
-      socket
-        .to(gameId)
-        .emit("game:player-joined", { gameId, userId, username });
-    });
-
-    socket.on("game:leave", (payload: unknown) => {
-      const result = joinLeaveSchema.safeParse(payload);
-      if (!result.success) return;
-      const { gameId, userId, username } = result.data;
-      socket.leave(gameId);
-      console.log(`[Socket] ${username} (${userId}) left room ${gameId}`);
-      io.to(gameId).emit("game:player-left", { gameId, userId, username });
-    });
-
-    socket.on("game:message", (payload: unknown) => {
-      const result = messageSchema.safeParse(payload);
-      if (!result.success) {
-        socket.emit("game:error", {
-          message: "Invalid payload",
-          errors: result.error.issues,
-        });
-        return;
-      }
-      const { gameId, userId, username, text } = result.data;
-      if (!socket.rooms.has(gameId)) {
-        socket.emit("game:error", { message: "You are not in this game room" });
-        return;
-      }
-      console.log(
-        `[Socket] ${username} (${userId}) sent message in ${gameId}: ${text}`,
-      );
-      io.to(gameId).emit("game:message", { gameId, userId, username, text });
-    });
-
-    socket.on("game:choice", (payload: unknown) => {
-      const result = choiceSchema.safeParse(payload);
+    /** Game in progress: player submits their choice or vote */
+    socket.on("player:choice", async (payload: unknown) => {
+      const result = playerChoiceSchema.safeParse(payload);
       if (!result.success) {
         socket.emit("game:error", {
           message: "Invalid payload",
@@ -254,12 +319,43 @@ export function registerGameSocketHandlers(io: Server): void {
         return;
       }
       const { gameId, userId, choice } = result.data;
-      if (!socket.rooms.has(gameId)) {
-        socket.emit("game:error", { message: "You are not in this game room" });
+
+      const game = gameRepository.findById(gameId);
+      if (!game || game.status !== "en_cours") {
+        socket.emit("game:error", {
+          message: "Partie introuvable ou non démarrée",
+        });
         return;
       }
-      console.log(`[Socket] ${userId} made choice in ${gameId}: ${choice}`);
-      io.to(gameId).emit("game:narration", { gameId, userId, choice });
+
+      const presentPlayers = getPresentPlayers(gameId);
+      if (!presentPlayers.some((p) => p.id === userId)) {
+        socket.emit("game:error", { message: "Tu n'es pas dans cette partie" });
+        return;
+      }
+
+      if (!pendingChoices.has(gameId)) {
+        pendingChoices.set(gameId, new Map());
+      }
+      const gameChoices = pendingChoices.get(gameId)!;
+
+      // Ignore duplicate submissions
+      if (gameChoices.has(userId)) return;
+
+      gameChoices.set(userId, choice);
+
+      const submitted = gameChoices.size;
+      const total = presentPlayers.length;
+
+      console.log(
+        `[Socket] ${userId} chose in ${gameId} (${submitted}/${total})`,
+      );
+
+      io.to(gameId).emit("step:choices:update", { submitted, total });
+
+      if (submitted >= total) {
+        await generateNextStep(io, gameId);
+      }
     });
 
     socket.on("disconnect", () => {
@@ -270,7 +366,30 @@ export function registerGameSocketHandlers(io: Server): void {
       };
       if (!gameId || !userId) return;
       console.log(`[Socket] cleanup: ${userId} left presence of ${gameId}`);
+
       removePresence(gameId, userId);
+
+      const game = gameRepository.findById(gameId);
+
+      // If game is in progress, check if remaining players have all submitted
+      if (game?.status === "en_cours") {
+        const pending = pendingChoices.get(gameId);
+        if (pending) {
+          const presentPlayers = getPresentPlayers(gameId);
+          const submitted = [...pending.keys()].filter((id) =>
+            presentPlayers.some((p) => p.id === id),
+          ).length;
+          const total = presentPlayers.length;
+
+          io.to(gameId).emit("step:choices:update", { submitted, total });
+
+          if (total > 0 && submitted >= total) {
+            void generateNextStep(io, gameId);
+          }
+        }
+        return;
+      }
+
       const state = getLobbyState(gameId);
       if (state) io.to(gameId).emit("lobby:update", state);
     });

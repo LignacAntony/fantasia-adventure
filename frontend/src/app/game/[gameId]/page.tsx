@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { Copy, Check, Crown, Loader2 } from "lucide-react";
+import { Copy, Check, Crown, Loader2, Users, User } from "lucide-react";
 import { socket } from "@/00_infra/socket/page";
 import { Navbar } from "@/components/navbar";
 import { Button } from "@/components/ui/button";
@@ -22,11 +22,25 @@ type GameStarting = {
   totalSteps: number;
 };
 
-type GameStarted = {
-  narration: string;
-  suggestions: Record<string, string[]>;
-  currentStep: number;
-  totalSteps: number;
+type GameStarted =
+  | {
+      stepType: "collective";
+      narration: string;
+      choices: string[];
+      currentStep: number;
+      totalSteps: number;
+    }
+  | {
+      stepType: "individual";
+      narration: string;
+      suggestions: Record<string, string[]>;
+      currentStep: number;
+      totalSteps: number;
+    };
+
+type StepChoicesUpdate = {
+  submitted: number;
+  total: number;
 };
 
 export default function GamePage() {
@@ -43,10 +57,14 @@ export default function GamePage() {
     "lobby" | "starting" | "en_cours"
   >("lobby");
   const [narration, setNarration] = useState<string | null>(null);
-  const [suggestions, setSuggestions] = useState<Record<
-    string,
-    string[]
-  > | null>(null);
+  const [stepType, setStepType] = useState<"collective" | "individual">(
+    "individual",
+  );
+  const [collectiveChoices, setCollectiveChoices] = useState<string[]>([]);
+  const [mySuggestions, setMySuggestions] = useState<string[]>([]);
+  const [hasChosen, setHasChosen] = useState(false);
+  const [choicesProgress, setChoicesProgress] =
+    useState<StepChoicesUpdate | null>(null);
   const [currentStep, setCurrentStep] = useState(0);
   const [totalSteps, setTotalSteps] = useState(0);
 
@@ -76,7 +94,14 @@ export default function GamePage() {
           setCurrentStep(g.currentStep);
           if (g.currentNarration) {
             setNarration(g.currentNarration.narration);
-            setSuggestions(g.currentNarration.suggestions);
+            setStepType(g.currentNarration.stepType);
+            if (g.currentNarration.stepType === "collective") {
+              setCollectiveChoices(g.currentNarration.choices);
+            } else {
+              setMySuggestions(
+                g.currentNarration.suggestions[user.userId] ?? [],
+              );
+            }
           }
         }
       })
@@ -86,8 +111,9 @@ export default function GamePage() {
   // Socket: join room + events
   useEffect(() => {
     if (!user) return;
+    const userId = user.userId;
 
-    socket.emit("player:join", { gameId, userId: user.userId });
+    socket.emit("player:join", { gameId, userId });
 
     function onLobbyUpdate(payload: LobbyUpdate) {
       setPlayers(payload.players);
@@ -102,28 +128,44 @@ export default function GamePage() {
 
     function onGameStarted(payload: GameStarted) {
       setNarration(payload.narration);
-      setSuggestions(payload.suggestions);
+      setStepType(payload.stepType);
       setCurrentStep(payload.currentStep);
       setTotalSteps(payload.totalSteps);
+      setHasChosen(false);
+      setChoicesProgress(null);
+
+      if (payload.stepType === "collective") {
+        setCollectiveChoices(payload.choices);
+        setMySuggestions([]);
+      } else {
+        setMySuggestions(payload.suggestions[userId] ?? []);
+        setCollectiveChoices([]);
+      }
+
       setGameStatus("en_cours");
     }
 
     function onGameError() {
-      // If starting failed, rollback to lobby
       setGameStatus((prev) => (prev === "starting" ? "lobby" : prev));
+    }
+
+    function onStepChoicesUpdate(payload: StepChoicesUpdate) {
+      setChoicesProgress(payload);
     }
 
     socket.on("lobby:update", onLobbyUpdate);
     socket.on("game:starting", onGameStarting);
     socket.on("game:started", onGameStarted);
     socket.on("game:error", onGameError);
+    socket.on("step:choices:update", onStepChoicesUpdate);
 
     return () => {
-      socket.emit("player:leave", { gameId, userId: user.userId });
+      socket.emit("player:leave", { gameId, userId });
       socket.off("lobby:update", onLobbyUpdate);
       socket.off("game:starting", onGameStarting);
       socket.off("game:started", onGameStarted);
       socket.off("game:error", onGameError);
+      socket.off("step:choices:update", onStepChoicesUpdate);
     };
   }, [gameId, user]);
 
@@ -140,10 +182,14 @@ export default function GamePage() {
     socket.emit("game:start", { gameId, userId: user.userId });
   }
 
+  function handleChoice(choice: string) {
+    if (!user || hasChosen) return;
+    setHasChosen(true);
+    socket.emit("player:choice", { gameId, userId: user.userId, choice });
+  }
+
   const isHost = user?.userId === hostId;
   const canStart = isHost && players.length >= 2;
-  const mySuggestions =
-    user && suggestions ? (suggestions[user.userId] ?? []) : [];
 
   return (
     <div className="relative min-h-screen bg-[#080e20] text-white">
@@ -183,7 +229,12 @@ export default function GamePage() {
             currentStep={currentStep}
             totalSteps={totalSteps}
             narration={narration}
+            stepType={stepType}
+            collectiveChoices={collectiveChoices}
             mySuggestions={mySuggestions}
+            hasChosen={hasChosen}
+            choicesProgress={choicesProgress}
+            onChoice={handleChoice}
           />
         )}
       </div>
@@ -350,15 +401,26 @@ function GameScreen({
   currentStep,
   totalSteps,
   narration,
+  stepType,
+  collectiveChoices,
   mySuggestions,
+  hasChosen,
+  choicesProgress,
+  onChoice,
 }: {
   game: Game | null;
   currentStep: number;
   totalSteps: number;
   narration: string;
+  stepType: "collective" | "individual";
+  collectiveChoices: string[];
   mySuggestions: string[];
+  hasChosen: boolean;
+  choicesProgress: StepChoicesUpdate | null;
+  onChoice: (choice: string) => void;
 }) {
   const progress = Math.round((currentStep / totalSteps) * 100);
+  const isCollective = stepType === "collective";
 
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-6 px-4 py-8">
@@ -378,6 +440,21 @@ function GameScreen({
         </div>
       </div>
 
+      {/* Step type badge */}
+      <div className="flex items-center gap-2">
+        {isCollective ? (
+          <span className="flex items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-xs font-medium text-amber-300">
+            <Users className="size-3" />
+            Décision collective
+          </span>
+        ) : (
+          <span className="flex items-center gap-1.5 rounded-full border border-purple-500/30 bg-purple-500/10 px-3 py-1 text-xs font-medium text-purple-300">
+            <User className="size-3" />
+            Action individuelle
+          </span>
+        )}
+      </div>
+
       {/* Narration */}
       <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
         <p className="text-sm font-semibold uppercase tracking-wider text-purple-400">
@@ -386,23 +463,45 @@ function GameScreen({
         <p className="mt-3 leading-relaxed text-white/90">{narration}</p>
       </div>
 
-      {/* Player choices */}
-      {mySuggestions.length > 0 && (
+      {/* Choices / Suggestions */}
+      {!hasChosen ? (
         <div className="space-y-3">
           <p className="text-sm font-semibold uppercase tracking-wider text-white/50">
-            Tes actions
+            {isCollective ? "Vote du groupe" : "Tes actions"}
           </p>
           <div className="grid gap-2">
-            {mySuggestions.map((suggestion, i) => (
-              <button
-                key={i}
-                className="rounded-xl border border-white/10 bg-white/5 p-4 text-left text-sm text-white/80 transition hover:border-purple-500/50 hover:bg-purple-500/10 hover:text-white"
-              >
-                <span className="mr-2 font-bold text-purple-400">{i + 1}.</span>
-                {suggestion}
-              </button>
-            ))}
+            {(isCollective ? collectiveChoices : mySuggestions).map(
+              (option, i) => (
+                <button
+                  key={i}
+                  onClick={() => onChoice(option)}
+                  className="rounded-xl border border-white/10 bg-white/5 p-4 text-left text-sm text-white/80 transition hover:border-purple-500/50 hover:bg-purple-500/10 hover:text-white"
+                >
+                  <span className="mr-2 font-bold text-purple-400">
+                    {i + 1}.
+                  </span>
+                  {option}
+                </button>
+              ),
+            )}
           </div>
+        </div>
+      ) : (
+        /* Waiting for other players */
+        <div className="rounded-xl border border-white/10 bg-white/5 p-5 text-center">
+          <div className="flex items-center justify-center gap-2 text-white/70">
+            <Loader2 className="size-4 animate-spin text-purple-400" />
+            <span className="text-sm">
+              {isCollective ? "Vote enregistré" : "Choix enregistré"} — En
+              attente des autres…
+            </span>
+          </div>
+          {choicesProgress && (
+            <p className="mt-2 text-xs text-white/40">
+              {choicesProgress.submitted} / {choicesProgress.total} joueur
+              {choicesProgress.total > 1 ? "s" : ""} ont répondu
+            </p>
+          )}
         </div>
       )}
     </div>

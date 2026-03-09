@@ -27,11 +27,12 @@ const baseInput: GenerateNarrationInput = {
   history: [],
 };
 
-const mockResponse = (narration: string) => ({
+const mockIndividualResponse = (narration: string) => ({
   choices: [
     {
       message: {
         content: JSON.stringify({
+          stepType: "individual",
           narration,
           suggestions: {
             "user-1": ["Lancer un sort", "Observer", "Fuir"],
@@ -43,25 +44,56 @@ const mockResponse = (narration: string) => ({
   ],
 });
 
+const mockCollectiveResponse = (narration: string) => ({
+  choices: [
+    {
+      message: {
+        content: JSON.stringify({
+          stepType: "collective",
+          narration,
+          choices: ["Nous avançons ensemble", "Nous rebroussons chemin", "Nous observons"],
+        }),
+      },
+    },
+  ],
+});
+
 beforeEach(() => {
   vi.clearAllMocks();
 });
 
 describe("generateNarration()", () => {
-  it("should return parsed narration and suggestions", async () => {
+  it("should return parsed individual narration and suggestions", async () => {
     mockCreate.mockResolvedValueOnce(
-      mockResponse("La forêt s'obscurcit...") as never,
+      mockIndividualResponse("La forêt s'obscurcit...") as never,
     );
 
     const result = await generateNarration(baseInput);
 
+    expect(result.stepType).toBe("individual");
     expect(result.narration).toBe("La forêt s'obscurcit...");
-    expect(result.suggestions["user-1"]).toHaveLength(3);
-    expect(result.suggestions["user-2"]).toHaveLength(3);
+    if (result.stepType === "individual") {
+      expect(result.suggestions["user-1"]).toHaveLength(3);
+      expect(result.suggestions["user-2"]).toHaveLength(3);
+    }
+  });
+
+  it("should return parsed collective narration and choices", async () => {
+    mockCreate.mockResolvedValueOnce(
+      mockCollectiveResponse("Le groupe arrive à un carrefour...") as never,
+    );
+
+    const result = await generateNarration(baseInput);
+
+    expect(result.stepType).toBe("collective");
+    expect(result.narration).toBe("Le groupe arrive à un carrefour...");
+    if (result.stepType === "collective") {
+      expect(result.choices).toHaveLength(3);
+    }
   });
 
   it("should call OpenAI with json_object response format", async () => {
-    mockCreate.mockResolvedValueOnce(mockResponse("Début...") as never);
+    mockCreate.mockResolvedValueOnce(mockIndividualResponse("Début...") as never);
 
     await generateNarration(baseInput);
 
@@ -74,8 +106,8 @@ describe("generateNarration()", () => {
     );
   });
 
-  it("should include system prompt with players and theme", async () => {
-    mockCreate.mockResolvedValueOnce(mockResponse("Début...") as never);
+  it("should include system prompt with players, theme and step type rules", async () => {
+    mockCreate.mockResolvedValueOnce(mockIndividualResponse("Début...") as never);
 
     await generateNarration(baseInput);
 
@@ -85,12 +117,13 @@ describe("generateNarration()", () => {
     const systemMessage = body.messages.find((m) => m.role === "system");
     expect(systemMessage?.content).toContain("La forêt maudite");
     expect(systemMessage?.content).toContain("Alice");
-    // Avatar name is now capitalised and includes archetype in the prompt
     expect(systemMessage?.content).toContain("Mage");
+    expect(systemMessage?.content).toContain("collective");
+    expect(systemMessage?.content).toContain("individual");
   });
 
   it("should send initial prompt when history is empty", async () => {
-    mockCreate.mockResolvedValueOnce(mockResponse("Début...") as never);
+    mockCreate.mockResolvedValueOnce(mockIndividualResponse("Début...") as never);
 
     await generateNarration(baseInput);
 
@@ -101,27 +134,28 @@ describe("generateNarration()", () => {
     expect(userMessages[0]?.content).toContain("contexte narratif initial");
   });
 
-  it("should include history in messages", async () => {
-    mockCreate.mockResolvedValueOnce(mockResponse("Chapitre 2...") as never);
+  it("should include stepType in history messages", async () => {
+    mockCreate.mockResolvedValueOnce(mockIndividualResponse("Chapitre 2...") as never);
 
     await generateNarration({
       ...baseInput,
       currentStep: 2,
       history: [
         {
+          stepType: "collective",
           narration: "Le groupe entre dans la forêt.",
           choices: [
             {
               playerId: "user-1",
               playerName: "Alice",
               avatar: "mage",
-              choice: "Lancer un sort",
+              choice: "Nous avançons ensemble",
             },
             {
               playerId: "user-2",
               playerName: "Bob",
               avatar: "warrior",
-              choice: "Attaquer",
+              choice: "Nous avançons ensemble",
             },
           ],
         },
@@ -132,15 +166,14 @@ describe("generateNarration()", () => {
       { messages: { role: string; content: string }[] },
     ];
     const assistantMessage = body.messages.find((m) => m.role === "assistant");
-    expect(assistantMessage?.content).toContain(
-      "Le groupe entre dans la forêt.",
-    );
+    expect(assistantMessage?.content).toContain("Le groupe entre dans la forêt.");
+    expect(assistantMessage?.content).toContain("collective");
   });
 
   it("should retry once on failure and succeed", async () => {
     mockCreate
       .mockRejectedValueOnce(new Error("Network error"))
-      .mockResolvedValueOnce(mockResponse("Reprise après erreur...") as never);
+      .mockResolvedValueOnce(mockIndividualResponse("Reprise après erreur...") as never);
 
     const result = await generateNarration(baseInput);
 

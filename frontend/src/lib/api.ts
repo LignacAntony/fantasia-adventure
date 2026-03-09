@@ -10,10 +10,9 @@ export type Player = {
   avatar: AvatarId;
 };
 
-export type NarrationOutput = {
-  narration: string;
-  suggestions: Record<string, string[]>;
-};
+export type NarrationOutput =
+  | { stepType: "collective"; narration: string; choices: string[] }
+  | { stepType: "individual"; narration: string; suggestions: Record<string, string[]> };
 
 export type Game = {
   id: string;
