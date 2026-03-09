@@ -1,5 +1,8 @@
 import { openaiClient } from "./openai.client.js";
 import type { AiNarrationOutput, GenerateNarrationInput } from "./ai.types.js";
+import { AVATARS } from "@/types/avatar.js";
+import type { AvatarId } from "@/types/avatar.js";
+import { envVariables } from "@/00_infra/env/envVariables.js";
 
 const MODEL = "gpt-4o-mini";
 const TIMEOUT_MS = 10_000;
@@ -7,7 +10,14 @@ const MAX_RETRIES = 1;
 
 function buildSystemPrompt(input: GenerateNarrationInput): string {
   const playerList = input.players
-    .map((p) => `- ${p.username} (avatar : ${p.avatar})`)
+    .map((p) => {
+      const avatarData = AVATARS[p.avatar as AvatarId];
+      const label = avatarData
+        ? `${avatarData.name} — ${avatarData.archetype}`
+        : p.avatar;
+      const instruction = avatarData?.systemPrompt ?? "";
+      return `- ${p.username} [ID: ${p.id}] (${label})\n  → ${instruction}`;
+    })
     .join("\n");
 
   return `Tu es le Maître du Jeu d'une aventure de fantasy pour ${input.players.length} joueur(s). Tu génères une narration immersive et des suggestions d'actions adaptées à chaque joueur.
@@ -16,7 +26,7 @@ RÈGLES :
 - Langue : français uniquement
 - Ton : épique, immersif, cohérent avec les événements passés
 - Ne jamais contredire l'historique narratif
-- Chaque joueur reçoit exactement 3 suggestions adaptées à son avatar
+- Chaque joueur reçoit exactement 3 suggestions adaptées à son avatar et à ses capacités
 - Contenu approprié uniquement (pas de violence extrême ni contenu adulte)
 - Interdiction de reproduire des personnages, lieux ou intrigues d'œuvres existantes
 - Faire avancer l'histoire à chaque étape, ne pas tourner en rond
@@ -95,13 +105,50 @@ async function callOpenAi(
 }
 
 /**
+ * Retourne une narration factice pour le développement (MOCK_AI=true).
+ * Évite de consommer des crédits OpenAI en local.
+ */
+function generateMockNarration(input: GenerateNarrationInput): AiNarrationOutput {
+  const step = input.currentStep;
+  const total = input.totalSteps;
+  const theme = input.theme;
+
+  const narration =
+    `[MODE MOCK — étape ${step}/${total}] ` +
+    `Dans un monde baigné par ${theme}, votre groupe se retrouve face à un carrefour mystérieux. ` +
+    `Les arbres anciens murmurent des secrets oubliés tandis qu'une lueur dorée pulse au loin. ` +
+    `Votre quête vous a menés ici — chaque décision compte désormais.`;
+
+  const suggestions: Record<string, string[]> = {};
+  for (const player of input.players) {
+    suggestions[player.id] = [
+      `Explorer le chemin illuminé vers la lueur dorée`,
+      `Interroger les arbres anciens pour obtenir des indices`,
+      `Installer un campement et observer l'environnement avant d'agir`,
+    ];
+  }
+
+  return { narration, suggestions };
+}
+
+/**
  * Génère une narration IA pour l'étape courante.
+ * Si MOCK_AI=true, retourne des données statiques sans appeler OpenAI.
  * Effectue une seconde tentative automatique en cas d'échec.
  * Lève une erreur si les deux tentatives échouent (FAN-45).
  */
 export async function generateNarration(
   input: GenerateNarrationInput,
 ): Promise<AiNarrationOutput> {
+  if (envVariables.MOCK_AI) {
+    console.log("[AiService] Mode mock activé — narration factice générée");
+    return generateMockNarration(input);
+  }
+
+  // Log du préfixe de la clé pour le debug (sans exposer la clé complète)
+  const keyPrefix = envVariables.OPENAI_API_KEY.slice(0, 7) + "…";
+  console.log(`[AiService] Appel OpenAI avec la clé ${keyPrefix}`);
+
   let lastError: unknown;
 
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {

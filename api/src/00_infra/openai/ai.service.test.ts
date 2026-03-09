@@ -11,6 +11,16 @@ vi.mock("./openai.client.js", () => ({
   },
 }));
 
+// Force MOCK_AI=false pour que les tests exercent le vrai chemin OpenAI
+vi.mock("@/00_infra/env/envVariables.js", () => ({
+  envVariables: {
+    OPENAI_API_KEY: "sk-test-key",
+    MOCK_AI: false,
+    CORS_ORIGINS: ["http://localhost:3000"],
+    FRONTEND_URL: "http://localhost:3000",
+  },
+}));
+
 import { openaiClient } from "./openai.client.js";
 import { generateNarration } from "./ai.service.js";
 
@@ -85,7 +95,8 @@ describe("generateNarration()", () => {
     const systemMessage = body.messages.find((m) => m.role === "system");
     expect(systemMessage?.content).toContain("La forêt maudite");
     expect(systemMessage?.content).toContain("Alice");
-    expect(systemMessage?.content).toContain("mage");
+    // Avatar name is now capitalised and includes archetype in the prompt
+    expect(systemMessage?.content).toContain("Mage");
   });
 
   it("should send initial prompt when history is empty", async () => {
