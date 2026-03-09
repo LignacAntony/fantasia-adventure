@@ -2,7 +2,6 @@ import { openaiClient } from "./openai.client.js";
 import type { AiNarrationOutput, GenerateNarrationInput } from "./ai.types.js";
 import { AVATARS } from "@/types/avatar.js";
 import type { AvatarId } from "@/types/avatar.js";
-import { envVariables } from "@/00_infra/env/envVariables.js";
 
 const MODEL = "gpt-4o-mini";
 const TIMEOUT_MS = 10_000;
@@ -105,50 +104,13 @@ async function callOpenAi(
 }
 
 /**
- * Retourne une narration factice pour le développement (MOCK_AI=true).
- * Évite de consommer des crédits OpenAI en local.
- */
-function generateMockNarration(input: GenerateNarrationInput): AiNarrationOutput {
-  const step = input.currentStep;
-  const total = input.totalSteps;
-  const theme = input.theme;
-
-  const narration =
-    `[MODE MOCK — étape ${step}/${total}] ` +
-    `Dans un monde baigné par ${theme}, votre groupe se retrouve face à un carrefour mystérieux. ` +
-    `Les arbres anciens murmurent des secrets oubliés tandis qu'une lueur dorée pulse au loin. ` +
-    `Votre quête vous a menés ici — chaque décision compte désormais.`;
-
-  const suggestions: Record<string, string[]> = {};
-  for (const player of input.players) {
-    suggestions[player.id] = [
-      `Explorer le chemin illuminé vers la lueur dorée`,
-      `Interroger les arbres anciens pour obtenir des indices`,
-      `Installer un campement et observer l'environnement avant d'agir`,
-    ];
-  }
-
-  return { narration, suggestions };
-}
-
-/**
  * Génère une narration IA pour l'étape courante.
- * Si MOCK_AI=true, retourne des données statiques sans appeler OpenAI.
  * Effectue une seconde tentative automatique en cas d'échec.
  * Lève une erreur si les deux tentatives échouent (FAN-45).
  */
 export async function generateNarration(
   input: GenerateNarrationInput,
 ): Promise<AiNarrationOutput> {
-  if (envVariables.MOCK_AI) {
-    console.log("[AiService] Mode mock activé — narration factice générée");
-    return generateMockNarration(input);
-  }
-
-  // Log du préfixe de la clé pour le debug (sans exposer la clé complète)
-  const keyPrefix = envVariables.OPENAI_API_KEY.slice(0, 7) + "…";
-  console.log(`[AiService] Appel OpenAI avec la clé ${keyPrefix}`);
-
   let lastError: unknown;
 
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
