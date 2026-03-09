@@ -10,6 +10,11 @@ export type Player = {
   avatar: AvatarId;
 };
 
+export type NarrationOutput = {
+  narration: string;
+  suggestions: Record<string, string[]>;
+};
+
 export type Game = {
   id: string;
   name: string;
@@ -19,6 +24,7 @@ export type Game = {
   status: GameStatus;
   hostId: string | null;
   users: Player[];
+  currentNarration: NarrationOutput | null;
 };
 
 export type CreateGameInput = {

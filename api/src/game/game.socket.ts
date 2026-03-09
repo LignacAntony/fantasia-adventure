@@ -2,6 +2,7 @@ import { z } from "zod";
 import type { Server, Socket } from "socket.io";
 import { gameRepository } from "./repository/game.repository.js";
 import type { User } from "@/types/user.js";
+import { generateNarration } from "@/00_infra/openai/ai.service.js";
 
 const joinLeaveSchema = z.object({
   gameId: z.string().uuid(),
@@ -10,6 +11,11 @@ const joinLeaveSchema = z.object({
 });
 
 const playerJoinSchema = z.object({
+  gameId: z.string().uuid(),
+  userId: z.string().uuid(),
+});
+
+const gameStartSchema = z.object({
   gameId: z.string().uuid(),
   userId: z.string().uuid(),
 });
@@ -101,6 +107,89 @@ export function registerGameSocketHandlers(io: Server): void {
 
       const state = getLobbyState(gameId);
       if (state) io.to(gameId).emit("lobby:update", state);
+    });
+
+    socket.on("game:start", async (payload: unknown) => {
+      const result = gameStartSchema.safeParse(payload);
+      if (!result.success) {
+        socket.emit("game:error", {
+          message: "Invalid payload",
+          errors: result.error.issues,
+        });
+        return;
+      }
+      const { gameId, userId } = result.data;
+
+      const game = gameRepository.findById(gameId);
+      if (!game) {
+        socket.emit("game:error", { message: "Game not found" });
+        return;
+      }
+      if (game.hostId !== userId) {
+        socket.emit("game:error", {
+          message: "Seul l'hôte peut lancer la partie",
+        });
+        return;
+      }
+      if (game.status !== "lobby") {
+        socket.emit("game:error", { message: "La partie a déjà commencé" });
+        return;
+      }
+
+      // Only include players currently present in the lobby
+      const presence = lobbyPresence.get(gameId) ?? new Set<string>();
+      const presentPlayers = game.users.filter((u) => presence.has(u.id));
+      if (presentPlayers.length < 2) {
+        socket.emit("game:error", {
+          message: "Il faut au moins 2 joueurs présents pour démarrer",
+        });
+        return;
+      }
+
+      // Transition → en_cours
+      game.status = "en_cours";
+      game.currentStep = 1;
+
+      // Notify everyone: show loading screen
+      io.to(gameId).emit("game:starting", {
+        currentStep: 1,
+        totalSteps: game.totalSteps,
+      });
+
+      console.log(`[Socket] Generating initial narration for game ${gameId}…`);
+
+      try {
+        const narration = await generateNarration({
+          players: presentPlayers.map((u) => ({
+            id: u.id,
+            username: u.username,
+            avatar: u.avatar,
+          })),
+          theme: game.theme,
+          totalSteps: game.totalSteps,
+          currentStep: 1,
+          history: [],
+        });
+
+        game.currentNarration = narration;
+
+        io.to(gameId).emit("game:started", {
+          narration: narration.narration,
+          suggestions: narration.suggestions,
+          currentStep: 1,
+          totalSteps: game.totalSteps,
+        });
+
+        console.log(`[Socket] Narration ready for game ${gameId}`);
+      } catch (error) {
+        console.error("[Socket] Failed to generate initial narration:", error);
+        // Rollback
+        game.status = "lobby";
+        game.currentStep = 0;
+        io.to(gameId).emit("game:error", {
+          message: "Impossible de générer la narration, réessaie.",
+        });
+      }
     });
 
     // Legacy game events (kept for future game phase)

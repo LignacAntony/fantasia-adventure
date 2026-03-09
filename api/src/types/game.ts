@@ -1,4 +1,8 @@
 import type { User } from "./user.ts";
+import type {
+  AiNarrationOutput,
+  NarrationHistoryEntry,
+} from "../00_infra/openai/ai.types.js";
 
 export type GameStatus = "lobby" | "en_cours" | "terminée" | "abandonnée";
 
@@ -11,4 +15,6 @@ export interface Game {
   status: GameStatus;
   hostId: string | null;
   users: User[];
+  currentNarration: AiNarrationOutput | null;
+  history: NarrationHistoryEntry[];
 }
