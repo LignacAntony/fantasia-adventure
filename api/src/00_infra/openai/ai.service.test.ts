@@ -34,10 +34,11 @@ const mockIndividualResponse = (narration: string) => ({
         content: JSON.stringify({
           stepType: "individual",
           narration,
-          suggestions: {
-            "user-1": ["Lancer un sort", "Observer", "Fuir"],
-            "user-2": ["Attaquer", "Défendre", "Négocier"],
-          },
+          choices: null,
+          suggestions: [
+            { playerId: "user-1", options: ["Lancer un sort", "Observer", "Fuir"] },
+            { playerId: "user-2", options: ["Attaquer", "Défendre", "Négocier"] },
+          ],
         }),
       },
     },
@@ -56,6 +57,7 @@ const mockCollectiveResponse = (narration: string) => ({
             "Nous rebroussons chemin",
             "Nous observons",
           ],
+          suggestions: null,
         }),
       },
     },
@@ -96,7 +98,7 @@ describe("generateNarration()", () => {
     }
   });
 
-  it("should call OpenAI with json_object response format", async () => {
+  it("should call OpenAI with json_schema response format and strict mode", async () => {
     mockCreate.mockResolvedValueOnce(
       mockIndividualResponse("Début...") as never,
     );
@@ -106,7 +108,13 @@ describe("generateNarration()", () => {
     expect(mockCreate).toHaveBeenCalledWith(
       expect.objectContaining({
         model: "gpt-4o-mini",
-        response_format: { type: "json_object" },
+        response_format: expect.objectContaining({
+          type: "json_schema",
+          json_schema: expect.objectContaining({
+            name: "narration_output",
+            strict: true,
+          }),
+        }),
       }),
       expect.anything(),
     );
@@ -200,18 +208,77 @@ describe("generateNarration()", () => {
   it("should throw after all retries exhausted", async () => {
     mockCreate
       .mockRejectedValueOnce(new Error("Network error"))
-      .mockRejectedValueOnce(new Error("Network error"))
       .mockRejectedValueOnce(new Error("Network error"));
 
     await expect(generateNarration(baseInput)).rejects.toThrow("Network error");
-    expect(mockCreate).toHaveBeenCalledTimes(3);
+    expect(mockCreate).toHaveBeenCalledTimes(2);
   });
 
   it("should throw if OpenAI returns empty content", async () => {
-    mockCreate.mockResolvedValueOnce({
+    const emptyResponse = {
       choices: [{ message: { content: null } }],
-    } as never);
+    } as never;
+
+    mockCreate
+      .mockResolvedValueOnce(emptyResponse)
+      .mockResolvedValueOnce(emptyResponse);
 
     await expect(generateNarration(baseInput)).rejects.toThrow();
+    expect(mockCreate).toHaveBeenCalledTimes(2);
+  });
+
+  it("should normalize suggestion keys when AI uses player names instead of IDs", async () => {
+    mockCreate.mockResolvedValue({
+      choices: [
+        {
+          message: {
+            content: JSON.stringify({
+              stepType: "individual",
+              narration: "Test narration",
+              choices: null,
+              suggestions: [
+                { playerId: "Alice", options: ["Option 1", "Option 2", "Option 3"] },
+                { playerId: "Bob", options: ["Option A", "Option B", "Option C"] },
+              ],
+            }),
+          },
+        },
+      ],
+    } as never);
+
+    const result = await generateNarration(baseInput);
+
+    expect(result.stepType).toBe("individual");
+    if (result.stepType === "individual") {
+      expect(result.suggestions["user-1"]).toEqual(["Option 1", "Option 2", "Option 3"]);
+      expect(result.suggestions["user-2"]).toEqual(["Option A", "Option B", "Option C"]);
+    }
+  });
+
+  it("should throw when collective step has null choices", async () => {
+    const badResponse = {
+      choices: [
+        {
+          message: {
+            content: JSON.stringify({
+              stepType: "collective",
+              narration: "Some narration",
+              choices: null,
+              suggestions: null,
+            }),
+          },
+        },
+      ],
+    } as never;
+
+    // Both attempts return the same bad response (MAX_RETRIES=1 → 2 calls)
+    mockCreate
+      .mockResolvedValueOnce(badResponse)
+      .mockResolvedValueOnce(badResponse);
+
+    await expect(generateNarration(baseInput)).rejects.toThrow(
+      "Collective step but choices is null",
+    );
+    expect(mockCreate).toHaveBeenCalledTimes(2);
   });
 });

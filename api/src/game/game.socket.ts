@@ -171,8 +171,11 @@ async function generateNextStep(io: Server, gameId: string): Promise<void> {
       console.log(`[Socket] Step ${nextStep} ready for game ${gameId}`);
     } catch (error) {
       console.error(`[Socket] Failed to generate step ${nextStep}:`, error);
-      // Restore pending choices so the step can be retried
-      pendingChoices.set(gameId, choices);
+      // Restore old choices only if no new ones arrived during the async call.
+      // Players may have reconnected and re-submitted while we were retrying.
+      if (!pendingChoices.has(gameId)) {
+        pendingChoices.set(gameId, choices);
+      }
       io.to(gameId).emit("game:error", {
         message: "Impossible de générer la narration suivante, réessaie.",
       });

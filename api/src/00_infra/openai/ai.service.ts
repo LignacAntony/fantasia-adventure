@@ -4,12 +4,70 @@ import { AVATARS } from "@/types/avatar.js";
 import type { AvatarId } from "@/types/avatar.js";
 
 const MODEL = "gpt-4o-mini";
-const TIMEOUT_MS = 10_000;
-const MAX_RETRIES = 2;
+const TIMEOUT_MS = 15_000;
+const MAX_RETRIES = 1;
+
+// ─── Structured Outputs JSON Schema ────────────────────────────────
+// Manual schema (not zodResponseFormat) to avoid Zod v4 compatibility issues.
+// Flat structure: both choices and suggestions are always present, the unused
+// one is null. This avoids anyOf/oneOf at root level (unsupported by strict mode).
+// suggestions uses array-of-objects instead of Record (additionalProperties
+// conflicts with strict: true).
+
+const NARRATION_SCHEMA = {
+  type: "object" as const,
+  required: ["stepType", "narration", "choices", "suggestions"] as const,
+  additionalProperties: false,
+  properties: {
+    stepType: {
+      type: "string" as const,
+      enum: ["collective", "individual"],
+    },
+    narration: {
+      type: "string" as const,
+    },
+    choices: {
+      anyOf: [
+        { type: "array" as const, items: { type: "string" as const } },
+        { type: "null" as const },
+      ],
+    },
+    suggestions: {
+      anyOf: [
+        {
+          type: "array" as const,
+          items: {
+            type: "object" as const,
+            required: ["playerId", "options"] as const,
+            additionalProperties: false,
+            properties: {
+              playerId: { type: "string" as const },
+              options: {
+                type: "array" as const,
+                items: { type: "string" as const },
+              },
+            },
+          },
+        },
+        { type: "null" as const },
+      ],
+    },
+  },
+};
+
+/** Shape returned directly by the AI (flat, nullable fields). */
+interface RawAiResponse {
+  stepType: "collective" | "individual";
+  narration: string;
+  choices: string[] | null;
+  suggestions: Array<{ playerId: string; options: string[] }> | null;
+}
+
+// ─── Helpers ───────────────────────────────────────────────────────
 
 /**
  * Remap suggestion keys to player IDs.
- * The AI sometimes uses player names instead of UUIDs despite the prompt.
+ * The AI sometimes uses player names instead of UUIDs despite the schema.
  */
 function normalizeSuggestionKeys(
   raw: Record<string, string[]>,
@@ -57,6 +115,8 @@ function normalizeSuggestionKeys(
   return normalized;
 }
 
+// ─── Prompt building ───────────────────────────────────────────────
+
 function buildSystemPrompt(input: GenerateNarrationInput): string {
   const playerList = input.players
     .map((p) => {
@@ -81,14 +141,14 @@ RÈGLES GÉNÉRALES :
 
 TYPE D'ÉTAPE — tu choisis le plus cohérent avec la situation narrative :
 - "collective" : situation de groupe (exploration, décision narrative commune, obstacle partagé).
-  → Tu DOIS fournir le champ "choices" : un tableau JSON de 3 options rédigées à la 1ère personne du pluriel (ex: "Nous...").
-  → Ne mets JAMAIS les options dans la narration ; elles doivent être UNIQUEMENT dans le champ "choices".
+  → Fournis 3 options dans "choices", rédigées à la 1ère personne du pluriel (ex: "Nous...").
+  → Mets "suggestions" à null.
 - "individual" : situation où chaque joueur agit selon ses propres capacités (combat, rencontre solo, événement personnel).
-  → Tu DOIS fournir le champ "suggestions" avec exactement 3 options PAR joueur, adaptées à son avatar et son archétype.
-  → Ne mets JAMAIS les options dans la narration ; elles doivent être UNIQUEMENT dans le champ "suggestions".
+  → Fournis "suggestions" avec exactement 3 options PAR joueur, adaptées à son avatar.
   → Les suggestions DOIVENT être différentes entre les joueurs.
+  → Mets "choices" à null.
 
-⚠️ IMPORTANT : la réponse JSON DOIT toujours contenir soit "choices" (collective) soit "suggestions" (individual). Ne jamais omettre ces champs.
+Ne mets JAMAIS les options dans la narration ; elles doivent être UNIQUEMENT dans "choices" ou "suggestions".
 
 JOUEURS :
 ${playerList}
@@ -97,22 +157,24 @@ THÈME : ${input.theme}
 ÉTAPES TOTALES : ${input.totalSteps}
 ÉTAPE ACTUELLE : ${input.currentStep}/${input.totalSteps}
 
-FORMAT DE RÉPONSE (JSON strict, aucun texte en dehors) :
+FORMAT DE RÉPONSE — le schéma JSON est imposé automatiquement. Exemples :
 
-Si étape collective :
+Étape collective :
 {
   "stepType": "collective",
-  "narration": "texte de narration pour tous les joueurs",
-  "choices": ["option 1 (nous...)", "option 2 (nous...)", "option 3 (nous...)"]
+  "narration": "texte de narration",
+  "choices": ["Nous explorons la grotte", "Nous contournons la montagne", "Nous demandons l'aide du sage"],
+  "suggestions": null
 }
 
-Si étape individuelle (les clés de "suggestions" DOIVENT être les IDs des joueurs ci-dessus, PAS leurs noms) :
+Étape individuelle :
 {
   "stepType": "individual",
-  "narration": "texte de narration pour tous les joueurs",
-  "suggestions": {
-    ${input.players.map((p) => `"${p.id}": ["suggestion pour ${p.username} 1", "suggestion 2", "suggestion 3"]`).join(",\n    ")}
-  }
+  "narration": "texte de narration",
+  "choices": null,
+  "suggestions": [
+    ${input.players.map((p) => `{ "playerId": "${p.id}", "options": ["action 1 pour ${p.username}", "action 2", "action 3"] }`).join(",\n    ")}
+  ]
 }`;
 }
 
@@ -148,6 +210,8 @@ function buildMessages(input: GenerateNarrationInput) {
   return messages;
 }
 
+// ─── OpenAI call with Structured Outputs ───────────────────────────
+
 async function callOpenAi(
   input: GenerateNarrationInput,
 ): Promise<AiNarrationOutput> {
@@ -158,7 +222,14 @@ async function callOpenAi(
     const response = await openaiClient.chat.completions.create(
       {
         model: MODEL,
-        response_format: { type: "json_object" },
+        response_format: {
+          type: "json_schema",
+          json_schema: {
+            name: "narration_output",
+            strict: true,
+            schema: NARRATION_SCHEMA,
+          },
+        },
         messages: [
           { role: "system", content: buildSystemPrompt(input) },
           ...buildMessages(input),
@@ -170,42 +241,39 @@ async function callOpenAi(
     const content = response.choices[0]?.message?.content;
     if (!content) throw new Error("[AiService] Empty response from OpenAI");
 
-    const parsed = JSON.parse(content) as Record<string, unknown>;
-
-    console.log("[AiService] Raw AI response:", JSON.stringify(parsed, null, 2));
-
-    const narration = parsed.narration as string;
+    const raw = JSON.parse(content) as RawAiResponse;
 
     // ── Collective step ──
-    if (parsed.stepType === "collective" && Array.isArray(parsed.choices) && parsed.choices.length > 0) {
-      return { stepType: "collective", narration, choices: parsed.choices as string[] };
+    if (raw.stepType === "collective") {
+      if (!Array.isArray(raw.choices) || raw.choices.length === 0) {
+        throw new Error(
+          `[AiService] Collective step but choices is ${JSON.stringify(raw.choices)}`,
+        );
+      }
+      return { stepType: "collective", narration: raw.narration, choices: raw.choices };
     }
 
     // ── Individual step ──
-    const rawSuggestions =
-      parsed.suggestions != null &&
-      typeof parsed.suggestions === "object" &&
-      !Array.isArray(parsed.suggestions)
-        ? (parsed.suggestions as Record<string, string[]>)
-        : null;
-
-    if (rawSuggestions && Object.keys(rawSuggestions).length > 0) {
-      const suggestions = normalizeSuggestionKeys(rawSuggestions, input.players);
-      return { stepType: "individual", narration, suggestions };
+    if (!Array.isArray(raw.suggestions) || raw.suggestions.length === 0) {
+      throw new Error(
+        `[AiService] Individual step but suggestions is ${JSON.stringify(raw.suggestions)}`,
+      );
     }
 
-    // ── Neither valid collective nor individual → throw to trigger retry ──
-    console.warn(
-      `[AiService] Invalid response structure: stepType="${String(parsed.stepType)}", ` +
-      `has choices=${Array.isArray(parsed.choices)}, has suggestions=${rawSuggestions != null}`,
-    );
-    throw new Error(
-      `[AiService] AI returned stepType "${String(parsed.stepType)}" without valid choices or suggestions`,
-    );
+    // Transform array-of-objects → Record<string, string[]>
+    const suggestionsRecord: Record<string, string[]> = {};
+    for (const entry of raw.suggestions) {
+      suggestionsRecord[entry.playerId] = entry.options;
+    }
+
+    const suggestions = normalizeSuggestionKeys(suggestionsRecord, input.players);
+    return { stepType: "individual", narration: raw.narration, suggestions };
   } finally {
     clearTimeout(timer);
   }
 }
+
+// ─── Public API ────────────────────────────────────────────────────
 
 /**
  * Génère une narration IA pour l'étape courante.

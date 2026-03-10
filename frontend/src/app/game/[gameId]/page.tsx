@@ -152,17 +152,26 @@ export default function GamePage() {
 
     function onGameError() {
       setGameStatus((prev) => {
-        if (prev !== "starting") return prev;
-        if (hasStartedRef.current) {
-          // Mid-game step failed: stay in en_cours so players can retry.
-          // Reset submission state; narration/choices are still the last good values.
+        if (prev === "starting") {
+          if (hasStartedRef.current) {
+            // Mid-game step failed: stay in en_cours so players can retry.
+            // Narration/choices are still the last good values.
+            setHasChosen(false);
+            setChoicesProgress(null);
+            setCurrentStep((s) => s - 1); // undo the optimistic step increment
+            return "en_cours";
+          }
+          // Initial game start failed: go back to lobby
+          return "lobby";
+        }
+        if (prev === "en_cours") {
+          // Player reconnected during AI retry then AI failed.
+          // Reset submission state so they can re-submit choices.
           setHasChosen(false);
           setChoicesProgress(null);
-          setCurrentStep((s) => s - 1); // undo the optimistic step increment
           return "en_cours";
         }
-        // Initial game start failed: go back to lobby
-        return "lobby";
+        return prev;
       });
     }
 
