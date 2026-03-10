@@ -30,6 +30,33 @@ const pendingChoices = new Map<string, Map<string, string>>();
 /** Guard against concurrent generateNextStep calls for the same game */
 const generatingSteps = new Set<string>();
 
+/** Duration (ms) players have to submit their choices before auto-proceeding */
+const CHOICE_TIMER_MS = 60_000;
+
+/** Active choice-collection timers: gameId → timeout handle */
+const stepTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
+function startChoiceTimer(io: Server, gameId: string): void {
+  const existing = stepTimers.get(gameId);
+  if (existing) clearTimeout(existing);
+  const t = setTimeout(() => {
+    stepTimers.delete(gameId);
+    console.log(
+      `[Socket] Timer expired for game ${gameId}, proceeding with partial choices`,
+    );
+    void generateNextStep(io, gameId);
+  }, CHOICE_TIMER_MS);
+  stepTimers.set(gameId, t);
+}
+
+function clearChoiceTimer(gameId: string): void {
+  const t = stepTimers.get(gameId);
+  if (t) {
+    clearTimeout(t);
+    stepTimers.delete(gameId);
+  }
+}
+
 function getLobbyState(
   gameId: string,
 ): { players: User[]; hostId: string | null } | null {
@@ -65,6 +92,9 @@ function getPresentPlayers(gameId: string): User[] {
  * Uses majority vote for collective steps.
  */
 async function generateNextStep(io: Server, gameId: string): Promise<void> {
+  // Cancel any pending choice timer for this game (e.g. all players voted early)
+  clearChoiceTimer(gameId);
+
   if (generatingSteps.has(gameId)) {
     console.log(
       `[Socket] generateNextStep already in progress for ${gameId}, skipping`,
@@ -77,8 +107,8 @@ async function generateNextStep(io: Server, gameId: string): Promise<void> {
     const game = gameRepository.findById(gameId);
     if (!game || game.status !== "en_cours") return;
 
-    const choices = pendingChoices.get(gameId);
-    if (!choices) return;
+    // Use whatever choices exist (may be empty if timer fired before any vote)
+    const choices = pendingChoices.get(gameId) ?? new Map<string, string>();
 
     const presentPlayers = getPresentPlayers(gameId);
     const currentNarration = game.currentNarration;
@@ -87,15 +117,8 @@ async function generateNextStep(io: Server, gameId: string): Promise<void> {
     let historyEntry: NarrationHistoryEntry;
 
     if (currentNarration?.stepType === "collective") {
-      // Majority vote: count votes, pick winner (first submitted wins ties)
-      const voteCounts = new Map<string, number>();
-      for (const choice of choices.values()) {
-        voteCounts.set(choice, (voteCounts.get(choice) ?? 0) + 1);
-      }
-      const winner = [...voteCounts.entries()].sort(
-        (a, b) => b[1] - a[1],
-      )[0]![0];
-
+      // FAN-63: keep actual individual choices (no majority remapping)
+      // The AI prompt will synthesize divergent votes into a coherent narrative.
       historyEntry = {
         stepType: "collective",
         narration: currentNarration.narration,
@@ -103,7 +126,7 @@ async function generateNextStep(io: Server, gameId: string): Promise<void> {
           playerId: p.id,
           playerName: p.username,
           avatar: p.avatar,
-          choice: winner,
+          choice: choices.get(p.id) ?? "(pas de vote)",
         })),
       };
     } else {
@@ -173,6 +196,7 @@ async function generateNextStep(io: Server, gameId: string): Promise<void> {
               choices: narration.choices,
               currentStep: nextStep,
               totalSteps: game.totalSteps,
+              timerMs: CHOICE_TIMER_MS,
             }
           : {
               stepType: "individual" as const,
@@ -180,9 +204,11 @@ async function generateNextStep(io: Server, gameId: string): Promise<void> {
               suggestions: narration.suggestions,
               currentStep: nextStep,
               totalSteps: game.totalSteps,
+              timerMs: CHOICE_TIMER_MS,
             };
 
       io.to(gameId).emit("game:started", payload);
+      startChoiceTimer(io, gameId);
       console.log(`[Socket] Step ${nextStep} ready for game ${gameId}`);
     } catch (error) {
       console.error(`[Socket] Failed to generate step ${nextStep}:`, error);
@@ -318,6 +344,7 @@ export function registerGameSocketHandlers(io: Server): void {
                 choices: narration.choices,
                 currentStep: 1,
                 totalSteps: game.totalSteps,
+                timerMs: CHOICE_TIMER_MS,
               }
             : {
                 stepType: "individual" as const,
@@ -325,9 +352,11 @@ export function registerGameSocketHandlers(io: Server): void {
                 suggestions: narration.suggestions,
                 currentStep: 1,
                 totalSteps: game.totalSteps,
+                timerMs: CHOICE_TIMER_MS,
               };
 
         io.to(gameId).emit("game:started", payload);
+        startChoiceTimer(io, gameId);
         console.log(`[Socket] Narration ready for game ${gameId}`);
       } catch (error) {
         console.error("[Socket] Failed to generate initial narration:", error);
@@ -385,6 +414,7 @@ export function registerGameSocketHandlers(io: Server): void {
       io.to(gameId).emit("step:choices:update", { submitted, total });
 
       if (submitted >= total) {
+        clearChoiceTimer(gameId);
         await generateNextStep(io, gameId);
       }
     });
