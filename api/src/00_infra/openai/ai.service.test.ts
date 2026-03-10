@@ -51,7 +51,11 @@ const mockCollectiveResponse = (narration: string) => ({
         content: JSON.stringify({
           stepType: "collective",
           narration,
-          choices: ["Nous avançons ensemble", "Nous rebroussons chemin", "Nous observons"],
+          choices: [
+            "Nous avançons ensemble",
+            "Nous rebroussons chemin",
+            "Nous observons",
+          ],
         }),
       },
     },
@@ -93,7 +97,9 @@ describe("generateNarration()", () => {
   });
 
   it("should call OpenAI with json_object response format", async () => {
-    mockCreate.mockResolvedValueOnce(mockIndividualResponse("Début...") as never);
+    mockCreate.mockResolvedValueOnce(
+      mockIndividualResponse("Début...") as never,
+    );
 
     await generateNarration(baseInput);
 
@@ -107,7 +113,9 @@ describe("generateNarration()", () => {
   });
 
   it("should include system prompt with players, theme and step type rules", async () => {
-    mockCreate.mockResolvedValueOnce(mockIndividualResponse("Début...") as never);
+    mockCreate.mockResolvedValueOnce(
+      mockIndividualResponse("Début...") as never,
+    );
 
     await generateNarration(baseInput);
 
@@ -123,7 +131,9 @@ describe("generateNarration()", () => {
   });
 
   it("should send initial prompt when history is empty", async () => {
-    mockCreate.mockResolvedValueOnce(mockIndividualResponse("Début...") as never);
+    mockCreate.mockResolvedValueOnce(
+      mockIndividualResponse("Début...") as never,
+    );
 
     await generateNarration(baseInput);
 
@@ -135,7 +145,9 @@ describe("generateNarration()", () => {
   });
 
   it("should include stepType in history messages", async () => {
-    mockCreate.mockResolvedValueOnce(mockIndividualResponse("Chapitre 2...") as never);
+    mockCreate.mockResolvedValueOnce(
+      mockIndividualResponse("Chapitre 2...") as never,
+    );
 
     await generateNarration({
       ...baseInput,
@@ -166,14 +178,18 @@ describe("generateNarration()", () => {
       { messages: { role: string; content: string }[] },
     ];
     const assistantMessage = body.messages.find((m) => m.role === "assistant");
-    expect(assistantMessage?.content).toContain("Le groupe entre dans la forêt.");
+    expect(assistantMessage?.content).toContain(
+      "Le groupe entre dans la forêt.",
+    );
     expect(assistantMessage?.content).toContain("collective");
   });
 
   it("should retry once on failure and succeed", async () => {
     mockCreate
       .mockRejectedValueOnce(new Error("Network error"))
-      .mockResolvedValueOnce(mockIndividualResponse("Reprise après erreur...") as never);
+      .mockResolvedValueOnce(
+        mockIndividualResponse("Reprise après erreur...") as never,
+      );
 
     const result = await generateNarration(baseInput);
 

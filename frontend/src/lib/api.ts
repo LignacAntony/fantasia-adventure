@@ -12,7 +12,11 @@ export type Player = {
 
 export type NarrationOutput =
   | { stepType: "collective"; narration: string; choices: string[] }
-  | { stepType: "individual"; narration: string; suggestions: Record<string, string[]> };
+  | {
+      stepType: "individual";
+      narration: string;
+      suggestions: Record<string, string[]>;
+    };
 
 export type Game = {
   id: string;
