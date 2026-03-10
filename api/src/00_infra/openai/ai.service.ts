@@ -7,6 +7,56 @@ const MODEL = "gpt-4o-mini";
 const TIMEOUT_MS = 10_000;
 const MAX_RETRIES = 1;
 
+/**
+ * Remap suggestion keys to player IDs.
+ * The AI sometimes uses player names instead of UUIDs despite the prompt.
+ */
+function normalizeSuggestionKeys(
+  raw: Record<string, string[]>,
+  players: Array<{ id: string; username: string }>,
+): Record<string, string[]> {
+  const playerIds = new Set(players.map((p) => p.id));
+
+  // Fast path: all keys are already valid player IDs
+  if (Object.keys(raw).every((k) => playerIds.has(k))) return raw;
+
+  console.warn(
+    "[AiService] Suggestion keys don't match player IDs — remapping",
+  );
+  const normalized: Record<string, string[]> = {};
+
+  for (const [key, suggestions] of Object.entries(raw)) {
+    if (!Array.isArray(suggestions)) continue;
+
+    // Exact ID match (partial hits)
+    if (playerIds.has(key)) {
+      normalized[key] = suggestions;
+      continue;
+    }
+
+    // Match by username (case-insensitive)
+    const match = players.find(
+      (p) => p.username.toLowerCase() === key.toLowerCase(),
+    );
+    if (match && !normalized[match.id]) {
+      normalized[match.id] = suggestions;
+    }
+  }
+
+  // Last resort: if AI returned the right count but wrong keys, assign positionally
+  const rawEntries = Object.entries(raw).filter(([, v]) => Array.isArray(v));
+  if (
+    Object.keys(normalized).length === 0 &&
+    rawEntries.length === players.length
+  ) {
+    for (let i = 0; i < players.length; i++) {
+      normalized[players[i]!.id] = rawEntries[i]![1];
+    }
+  }
+
+  return normalized;
+}
+
 function buildSystemPrompt(input: GenerateNarrationInput): string {
   const playerList = input.players
     .map((p) => {
@@ -52,12 +102,12 @@ Si étape collective :
   "choices": ["option 1 (nous...)", "option 2 (nous...)", "option 3 (nous...)"]
 }
 
-Si étape individuelle :
+Si étape individuelle (les clés de "suggestions" DOIVENT être les IDs des joueurs ci-dessus, PAS leurs noms) :
 {
   "stepType": "individual",
   "narration": "texte de narration pour tous les joueurs",
   "suggestions": {
-    "<playerId>": ["suggestion 1", "suggestion 2", "suggestion 3"]
+    ${input.players.map((p) => `"${p.id}": ["suggestion pour ${p.username} 1", "suggestion 2", "suggestion 3"]`).join(",\n    ")}
   }
 }`;
 }
@@ -131,12 +181,13 @@ async function callOpenAi(
     if (parsed.stepType === "collective") {
       console.warn("[AiService] collective step missing choices — falling back to individual");
     }
-    const suggestions =
+    const rawSuggestions =
       parsed.suggestions != null &&
       typeof parsed.suggestions === "object" &&
       !Array.isArray(parsed.suggestions)
         ? (parsed.suggestions as Record<string, string[]>)
         : {};
+    const suggestions = normalizeSuggestionKeys(rawSuggestions, input.players);
     return { stepType: "individual", narration, suggestions };
   } finally {
     clearTimeout(timer);
