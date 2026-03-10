@@ -27,6 +27,9 @@ const lobbyPresence = new Map<string, Set<string>>();
 /** Track pending choices for the current step: gameId → Map<userId, choice> */
 const pendingChoices = new Map<string, Map<string, string>>();
 
+/** Guard against concurrent generateNextStep calls for the same game */
+const generatingSteps = new Set<string>();
+
 function getLobbyState(
   gameId: string,
 ): { players: User[]; hostId: string | null } | null {
@@ -62,110 +65,120 @@ function getPresentPlayers(gameId: string): User[] {
  * Uses majority vote for collective steps.
  */
 async function generateNextStep(io: Server, gameId: string): Promise<void> {
-  const game = gameRepository.findById(gameId);
-  if (!game || game.status !== "en_cours") return;
-
-  const choices = pendingChoices.get(gameId);
-  if (!choices) return;
-
-  const presentPlayers = getPresentPlayers(gameId);
-  const currentNarration = game.currentNarration;
-
-  // Build history entry from the current step choices
-  let historyEntry: NarrationHistoryEntry;
-
-  if (currentNarration?.stepType === "collective") {
-    // Majority vote: count votes, pick winner (first submitted wins ties)
-    const voteCounts = new Map<string, number>();
-    for (const choice of choices.values()) {
-      voteCounts.set(choice, (voteCounts.get(choice) ?? 0) + 1);
-    }
-    const winner = [...voteCounts.entries()].sort((a, b) => b[1] - a[1])[0]![0];
-
-    historyEntry = {
-      stepType: "collective",
-      narration: currentNarration.narration,
-      choices: presentPlayers.map((p) => ({
-        playerId: p.id,
-        playerName: p.username,
-        avatar: p.avatar,
-        choice: winner,
-      })),
-    };
-  } else {
-    // Individual: each player's own choice
-    historyEntry = {
-      stepType: "individual",
-      narration: currentNarration?.narration ?? "",
-      choices: presentPlayers.map((p) => ({
-        playerId: p.id,
-        playerName: p.username,
-        avatar: p.avatar,
-        choice: choices.get(p.id) ?? "",
-      })),
-    };
+  if (generatingSteps.has(gameId)) {
+    console.log(`[Socket] generateNextStep already in progress for ${gameId}, skipping`);
+    return;
   }
-
-  const nextStep = game.currentStep + 1;
-
-  // Notify everyone: loading screen
-  io.to(gameId).emit("game:starting", {
-    currentStep: nextStep,
-    totalSteps: game.totalSteps,
-  });
-
-  // Clear pending choices before the async call
-  pendingChoices.delete(gameId);
-
-  console.log(
-    `[Socket] Generating step ${nextStep} narration for game ${gameId}…`,
-  );
+  generatingSteps.add(gameId);
 
   try {
-    const updatedHistory = [...game.history, historyEntry];
+    const game = gameRepository.findById(gameId);
+    if (!game || game.status !== "en_cours") return;
 
-    const narration = await generateNarration({
-      players: presentPlayers.map((u) => ({
-        id: u.id,
-        username: u.username,
-        avatar: u.avatar,
-      })),
-      theme: game.theme,
-      totalSteps: game.totalSteps,
+    const choices = pendingChoices.get(gameId);
+    if (!choices) return;
+
+    const presentPlayers = getPresentPlayers(gameId);
+    const currentNarration = game.currentNarration;
+
+    // Build history entry from the current step choices
+    let historyEntry: NarrationHistoryEntry;
+
+    if (currentNarration?.stepType === "collective") {
+      // Majority vote: count votes, pick winner (first submitted wins ties)
+      const voteCounts = new Map<string, number>();
+      for (const choice of choices.values()) {
+        voteCounts.set(choice, (voteCounts.get(choice) ?? 0) + 1);
+      }
+      const winner = [...voteCounts.entries()].sort((a, b) => b[1] - a[1])[0]![0];
+
+      historyEntry = {
+        stepType: "collective",
+        narration: currentNarration.narration,
+        choices: presentPlayers.map((p) => ({
+          playerId: p.id,
+          playerName: p.username,
+          avatar: p.avatar,
+          choice: winner,
+        })),
+      };
+    } else {
+      // Individual: each player's own choice
+      historyEntry = {
+        stepType: "individual",
+        narration: currentNarration?.narration ?? "",
+        choices: presentPlayers.map((p) => ({
+          playerId: p.id,
+          playerName: p.username,
+          avatar: p.avatar,
+          choice: choices.get(p.id) ?? "",
+        })),
+      };
+    }
+
+    const nextStep = game.currentStep + 1;
+
+    // Notify everyone: loading screen
+    io.to(gameId).emit("game:starting", {
       currentStep: nextStep,
-      history: updatedHistory,
+      totalSteps: game.totalSteps,
     });
 
-    game.currentStep = nextStep;
-    game.currentNarration = narration;
-    game.history = updatedHistory;
+    // Clear pending choices before the async call
+    pendingChoices.delete(gameId);
 
-    const payload =
-      narration.stepType === "collective"
-        ? {
-            stepType: "collective" as const,
-            narration: narration.narration,
-            choices: narration.choices,
-            currentStep: nextStep,
-            totalSteps: game.totalSteps,
-          }
-        : {
-            stepType: "individual" as const,
-            narration: narration.narration,
-            suggestions: narration.suggestions,
-            currentStep: nextStep,
-            totalSteps: game.totalSteps,
-          };
+    console.log(
+      `[Socket] Generating step ${nextStep} narration for game ${gameId}…`,
+    );
 
-    io.to(gameId).emit("game:started", payload);
-    console.log(`[Socket] Step ${nextStep} ready for game ${gameId}`);
-  } catch (error) {
-    console.error(`[Socket] Failed to generate step ${nextStep}:`, error);
-    // Restore pending choices so the step can be retried
-    pendingChoices.set(gameId, choices);
-    io.to(gameId).emit("game:error", {
-      message: "Impossible de générer la narration suivante, réessaie.",
-    });
+    try {
+      const updatedHistory = [...game.history, historyEntry];
+
+      const narration = await generateNarration({
+        players: presentPlayers.map((u) => ({
+          id: u.id,
+          username: u.username,
+          avatar: u.avatar,
+        })),
+        theme: game.theme,
+        totalSteps: game.totalSteps,
+        currentStep: nextStep,
+        history: updatedHistory,
+      });
+
+      game.currentStep = nextStep;
+      game.currentNarration = narration;
+      game.history = updatedHistory;
+
+      const payload =
+        narration.stepType === "collective"
+          ? {
+              stepType: "collective" as const,
+              narration: narration.narration,
+              choices: narration.choices,
+              currentStep: nextStep,
+              totalSteps: game.totalSteps,
+            }
+          : {
+              stepType: "individual" as const,
+              narration: narration.narration,
+              suggestions: narration.suggestions,
+              currentStep: nextStep,
+              totalSteps: game.totalSteps,
+            };
+
+      io.to(gameId).emit("game:started", payload);
+      console.log(`[Socket] Step ${nextStep} ready for game ${gameId}`);
+    } catch (error) {
+      console.error(`[Socket] Failed to generate step ${nextStep}:`, error);
+      // Restore pending choices so the step can be retried
+      pendingChoices.set(gameId, choices);
+      io.to(gameId).emit("game:error", {
+        message: "Impossible de générer la narration suivante, réessaie.",
+      });
+    }
+  } finally {
+    generatingSteps.delete(gameId);
   }
 }
 

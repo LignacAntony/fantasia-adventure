@@ -118,31 +118,26 @@ async function callOpenAi(
 
     const parsed = JSON.parse(content) as Record<string, unknown>;
 
-    if (parsed.stepType === "collective") {
-      if (!Array.isArray(parsed.choices) || parsed.choices.length === 0) {
-        throw new Error(
-          "[AiService] Invalid collective response: missing or empty choices array",
-        );
-      }
-      return {
-        stepType: "collective",
-        narration: parsed.narration as string,
-        choices: parsed.choices as string[],
-      };
+    const narration = parsed.narration as string;
+
+    if (parsed.stepType === "collective" && Array.isArray(parsed.choices) && parsed.choices.length > 0) {
+      return { stepType: "collective", narration, choices: parsed.choices as string[] };
     }
 
-    // Default to individual (covers missing stepType and explicit "individual")
+    // Fallback to individual — covers:
+    // - explicit stepType "individual"
+    // - missing stepType
+    // - collective with wrong field (AI used "suggestions" instead of "choices")
+    if (parsed.stepType === "collective") {
+      console.warn("[AiService] collective step missing choices — falling back to individual");
+    }
     const suggestions =
       parsed.suggestions != null &&
       typeof parsed.suggestions === "object" &&
       !Array.isArray(parsed.suggestions)
         ? (parsed.suggestions as Record<string, string[]>)
         : {};
-    return {
-      stepType: "individual",
-      narration: parsed.narration as string,
-      suggestions,
-    };
+    return { stepType: "individual", narration, suggestions };
   } finally {
     clearTimeout(timer);
   }

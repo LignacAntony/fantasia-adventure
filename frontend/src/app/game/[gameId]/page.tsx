@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Copy, Check, Crown, Loader2, Users, User } from "lucide-react";
 import { socket } from "@/00_infra/socket/page";
@@ -74,6 +74,9 @@ export default function GamePage() {
     return raw ? JSON.parse(raw) : null;
   });
 
+  /** True once the first step narration has been received (game is truly in progress) */
+  const hasStartedRef = useRef(false);
+
   // Redirect if no user
   useEffect(() => {
     if (!user) {
@@ -128,6 +131,7 @@ export default function GamePage() {
     }
 
     function onGameStarted(payload: GameStarted) {
+      hasStartedRef.current = true;
       setNarration(payload.narration);
       setStepType(payload.stepType);
       setCurrentStep(payload.currentStep);
@@ -147,7 +151,19 @@ export default function GamePage() {
     }
 
     function onGameError() {
-      setGameStatus((prev) => (prev === "starting" ? "lobby" : prev));
+      setGameStatus((prev) => {
+        if (prev !== "starting") return prev;
+        if (hasStartedRef.current) {
+          // Mid-game step failed: stay in en_cours so players can retry.
+          // Reset submission state; narration/choices are still the last good values.
+          setHasChosen(false);
+          setChoicesProgress(null);
+          setCurrentStep((s) => s - 1); // undo the optimistic step increment
+          return "en_cours";
+        }
+        // Initial game start failed: go back to lobby
+        return "lobby";
+      });
     }
 
     function onStepChoicesUpdate(payload: StepChoicesUpdate) {
