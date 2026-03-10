@@ -8,11 +8,6 @@ const TIMEOUT_MS = 15_000;
 const MAX_RETRIES = 1;
 
 // ─── Structured Outputs JSON Schema ────────────────────────────────
-// Manual schema (not zodResponseFormat) to avoid Zod v4 compatibility issues.
-// Flat structure: both choices and suggestions are always present, the unused
-// one is null. This avoids anyOf/oneOf at root level (unsupported by strict mode).
-// suggestions uses array-of-objects instead of Record (additionalProperties
-// conflicts with strict: true).
 
 const NARRATION_SCHEMA = {
   type: "object" as const,
