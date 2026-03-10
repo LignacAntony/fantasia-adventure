@@ -245,7 +245,11 @@ async function callOpenAi(
           `[AiService] Collective step but choices is ${JSON.stringify(raw.choices)}`,
         );
       }
-      return { stepType: "collective", narration: raw.narration, choices: raw.choices };
+      return {
+        stepType: "collective",
+        narration: raw.narration,
+        choices: raw.choices,
+      };
     }
 
     // ── Individual step ──
@@ -261,7 +265,10 @@ async function callOpenAi(
       suggestionsRecord[entry.playerId] = entry.options;
     }
 
-    const suggestions = normalizeSuggestionKeys(suggestionsRecord, input.players);
+    const suggestions = normalizeSuggestionKeys(
+      suggestionsRecord,
+      input.players,
+    );
     return { stepType: "individual", narration: raw.narration, suggestions };
   } finally {
     clearTimeout(timer);

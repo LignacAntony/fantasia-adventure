@@ -36,8 +36,14 @@ const mockIndividualResponse = (narration: string) => ({
           narration,
           choices: null,
           suggestions: [
-            { playerId: "user-1", options: ["Lancer un sort", "Observer", "Fuir"] },
-            { playerId: "user-2", options: ["Attaquer", "Défendre", "Négocier"] },
+            {
+              playerId: "user-1",
+              options: ["Lancer un sort", "Observer", "Fuir"],
+            },
+            {
+              playerId: "user-2",
+              options: ["Attaquer", "Défendre", "Négocier"],
+            },
           ],
         }),
       },
@@ -237,8 +243,14 @@ describe("generateNarration()", () => {
               narration: "Test narration",
               choices: null,
               suggestions: [
-                { playerId: "Alice", options: ["Option 1", "Option 2", "Option 3"] },
-                { playerId: "Bob", options: ["Option A", "Option B", "Option C"] },
+                {
+                  playerId: "Alice",
+                  options: ["Option 1", "Option 2", "Option 3"],
+                },
+                {
+                  playerId: "Bob",
+                  options: ["Option A", "Option B", "Option C"],
+                },
               ],
             }),
           },
@@ -250,8 +262,16 @@ describe("generateNarration()", () => {
 
     expect(result.stepType).toBe("individual");
     if (result.stepType === "individual") {
-      expect(result.suggestions["user-1"]).toEqual(["Option 1", "Option 2", "Option 3"]);
-      expect(result.suggestions["user-2"]).toEqual(["Option A", "Option B", "Option C"]);
+      expect(result.suggestions["user-1"]).toEqual([
+        "Option 1",
+        "Option 2",
+        "Option 3",
+      ]);
+      expect(result.suggestions["user-2"]).toEqual([
+        "Option A",
+        "Option B",
+        "Option C",
+      ]);
     }
   });
 

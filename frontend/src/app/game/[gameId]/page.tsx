@@ -496,20 +496,19 @@ function GameScreen({
             {isCollective ? "Vote du groupe" : "Tes actions"}
           </p>
           <div className="grid gap-2">
-            {(isCollective ? (collectiveChoices ?? []) : (mySuggestions ?? [])).map(
-              (option, i) => (
-                <button
-                  key={i}
-                  onClick={() => onChoice(option)}
-                  className="rounded-xl border border-white/10 bg-white/5 p-4 text-left text-sm text-white/80 transition hover:border-purple-500/50 hover:bg-purple-500/10 hover:text-white"
-                >
-                  <span className="mr-2 font-bold text-purple-400">
-                    {i + 1}.
-                  </span>
-                  {option}
-                </button>
-              ),
-            )}
+            {(isCollective
+              ? (collectiveChoices ?? [])
+              : (mySuggestions ?? [])
+            ).map((option, i) => (
+              <button
+                key={i}
+                onClick={() => onChoice(option)}
+                className="rounded-xl border border-white/10 bg-white/5 p-4 text-left text-sm text-white/80 transition hover:border-purple-500/50 hover:bg-purple-500/10 hover:text-white"
+              >
+                <span className="mr-2 font-bold text-purple-400">{i + 1}.</span>
+                {option}
+              </button>
+            ))}
           </div>
         </div>
       ) : (

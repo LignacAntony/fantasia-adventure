@@ -66,7 +66,9 @@ function getPresentPlayers(gameId: string): User[] {
  */
 async function generateNextStep(io: Server, gameId: string): Promise<void> {
   if (generatingSteps.has(gameId)) {
-    console.log(`[Socket] generateNextStep already in progress for ${gameId}, skipping`);
+    console.log(
+      `[Socket] generateNextStep already in progress for ${gameId}, skipping`,
+    );
     return;
   }
   generatingSteps.add(gameId);
@@ -90,7 +92,9 @@ async function generateNextStep(io: Server, gameId: string): Promise<void> {
       for (const choice of choices.values()) {
         voteCounts.set(choice, (voteCounts.get(choice) ?? 0) + 1);
       }
-      const winner = [...voteCounts.entries()].sort((a, b) => b[1] - a[1])[0]![0];
+      const winner = [...voteCounts.entries()].sort(
+        (a, b) => b[1] - a[1],
+      )[0]![0];
 
       historyEntry = {
         stepType: "collective",
