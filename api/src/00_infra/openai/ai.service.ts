@@ -5,7 +5,7 @@ import type { AvatarId } from "@/types/avatar.js";
 
 const MODEL = "gpt-4o-mini";
 const TIMEOUT_MS = 10_000;
-const MAX_RETRIES = 1;
+const MAX_RETRIES = 2;
 
 /**
  * Remap suggestion keys to player IDs.
@@ -81,10 +81,14 @@ RÈGLES GÉNÉRALES :
 
 TYPE D'ÉTAPE — tu choisis le plus cohérent avec la situation narrative :
 - "collective" : situation de groupe (exploration, décision narrative commune, obstacle partagé).
-  → Génère un seul tableau "choices" de 3 options rédigées à la 1ère personne du pluriel (ex: "Nous...").
+  → Tu DOIS fournir le champ "choices" : un tableau JSON de 3 options rédigées à la 1ère personne du pluriel (ex: "Nous...").
+  → Ne mets JAMAIS les options dans la narration ; elles doivent être UNIQUEMENT dans le champ "choices".
 - "individual" : situation où chaque joueur agit selon ses propres capacités (combat, rencontre solo, événement personnel).
-  → Génère "suggestions" avec exactement 3 options PAR joueur, adaptées à son avatar et son archétype.
-  → Les suggestions DOIVENT être différentes entre les joueurs : chaque joueur a des options uniques qui reflètent ses avantages et inconvénients.
+  → Tu DOIS fournir le champ "suggestions" avec exactement 3 options PAR joueur, adaptées à son avatar et son archétype.
+  → Ne mets JAMAIS les options dans la narration ; elles doivent être UNIQUEMENT dans le champ "suggestions".
+  → Les suggestions DOIVENT être différentes entre les joueurs.
+
+⚠️ IMPORTANT : la réponse JSON DOIT toujours contenir soit "choices" (collective) soit "suggestions" (individual). Ne jamais omettre ces champs.
 
 JOUEURS :
 ${playerList}
@@ -168,27 +172,36 @@ async function callOpenAi(
 
     const parsed = JSON.parse(content) as Record<string, unknown>;
 
+    console.log("[AiService] Raw AI response:", JSON.stringify(parsed, null, 2));
+
     const narration = parsed.narration as string;
 
+    // ── Collective step ──
     if (parsed.stepType === "collective" && Array.isArray(parsed.choices) && parsed.choices.length > 0) {
       return { stepType: "collective", narration, choices: parsed.choices as string[] };
     }
 
-    // Fallback to individual — covers:
-    // - explicit stepType "individual"
-    // - missing stepType
-    // - collective with wrong field (AI used "suggestions" instead of "choices")
-    if (parsed.stepType === "collective") {
-      console.warn("[AiService] collective step missing choices — falling back to individual");
-    }
+    // ── Individual step ──
     const rawSuggestions =
       parsed.suggestions != null &&
       typeof parsed.suggestions === "object" &&
       !Array.isArray(parsed.suggestions)
         ? (parsed.suggestions as Record<string, string[]>)
-        : {};
-    const suggestions = normalizeSuggestionKeys(rawSuggestions, input.players);
-    return { stepType: "individual", narration, suggestions };
+        : null;
+
+    if (rawSuggestions && Object.keys(rawSuggestions).length > 0) {
+      const suggestions = normalizeSuggestionKeys(rawSuggestions, input.players);
+      return { stepType: "individual", narration, suggestions };
+    }
+
+    // ── Neither valid collective nor individual → throw to trigger retry ──
+    console.warn(
+      `[AiService] Invalid response structure: stepType="${String(parsed.stepType)}", ` +
+      `has choices=${Array.isArray(parsed.choices)}, has suggestions=${rawSuggestions != null}`,
+    );
+    throw new Error(
+      `[AiService] AI returned stepType "${String(parsed.stepType)}" without valid choices or suggestions`,
+    );
   } finally {
     clearTimeout(timer);
   }

@@ -197,13 +197,14 @@ describe("generateNarration()", () => {
     expect(mockCreate).toHaveBeenCalledTimes(2);
   });
 
-  it("should throw after two consecutive failures", async () => {
+  it("should throw after all retries exhausted", async () => {
     mockCreate
+      .mockRejectedValueOnce(new Error("Network error"))
       .mockRejectedValueOnce(new Error("Network error"))
       .mockRejectedValueOnce(new Error("Network error"));
 
     await expect(generateNarration(baseInput)).rejects.toThrow("Network error");
-    expect(mockCreate).toHaveBeenCalledTimes(2);
+    expect(mockCreate).toHaveBeenCalledTimes(3);
   });
 
   it("should throw if OpenAI returns empty content", async () => {
