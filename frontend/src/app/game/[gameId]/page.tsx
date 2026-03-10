@@ -135,10 +135,10 @@ export default function GamePage() {
       setChoicesProgress(null);
 
       if (payload.stepType === "collective") {
-        setCollectiveChoices(payload.choices);
+        setCollectiveChoices(payload.choices ?? []);
         setMySuggestions([]);
       } else {
-        setMySuggestions(payload.suggestions[userId] ?? []);
+        setMySuggestions(payload.suggestions?.[userId] ?? []);
         setCollectiveChoices([]);
       }
 
@@ -470,7 +470,7 @@ function GameScreen({
             {isCollective ? "Vote du groupe" : "Tes actions"}
           </p>
           <div className="grid gap-2">
-            {(isCollective ? collectiveChoices : mySuggestions).map(
+            {(isCollective ? (collectiveChoices ?? []) : (mySuggestions ?? [])).map(
               (option, i) => (
                 <button
                   key={i}

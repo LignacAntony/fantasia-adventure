@@ -116,7 +116,33 @@ async function callOpenAi(
     const content = response.choices[0]?.message?.content;
     if (!content) throw new Error("[AiService] Empty response from OpenAI");
 
-    return JSON.parse(content) as AiNarrationOutput;
+    const parsed = JSON.parse(content) as Record<string, unknown>;
+
+    if (parsed.stepType === "collective") {
+      if (!Array.isArray(parsed.choices) || parsed.choices.length === 0) {
+        throw new Error(
+          "[AiService] Invalid collective response: missing or empty choices array",
+        );
+      }
+      return {
+        stepType: "collective",
+        narration: parsed.narration as string,
+        choices: parsed.choices as string[],
+      };
+    }
+
+    // Default to individual (covers missing stepType and explicit "individual")
+    const suggestions =
+      parsed.suggestions != null &&
+      typeof parsed.suggestions === "object" &&
+      !Array.isArray(parsed.suggestions)
+        ? (parsed.suggestions as Record<string, string[]>)
+        : {};
+    return {
+      stepType: "individual",
+      narration: parsed.narration as string,
+      suggestions,
+    };
   } finally {
     clearTimeout(timer);
   }
