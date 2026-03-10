@@ -122,6 +122,17 @@ async function generateNextStep(io: Server, gameId: string): Promise<void> {
 
     const nextStep = game.currentStep + 1;
 
+    // Game complete — no more steps to generate
+    if (nextStep > game.totalSteps) {
+      game.status = "terminée";
+      pendingChoices.delete(gameId);
+      io.to(gameId).emit("game:ended");
+      console.log(
+        `[Socket] Game ${gameId} completed after ${game.totalSteps} steps`,
+      );
+      return;
+    }
+
     // Notify everyone: loading screen
     io.to(gameId).emit("game:starting", {
       currentStep: nextStep,

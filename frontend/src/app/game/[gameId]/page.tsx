@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { Copy, Check, Crown, Loader2, Users, User } from "lucide-react";
+import { Copy, Check, Crown, Loader2, Trophy, Users, User } from "lucide-react";
 import { socket } from "@/00_infra/socket/page";
 import { Navbar } from "@/components/navbar";
 import { Button } from "@/components/ui/button";
@@ -54,7 +54,7 @@ export default function GamePage() {
 
   // Game state
   const [gameStatus, setGameStatus] = useState<
-    "lobby" | "starting" | "en_cours"
+    "lobby" | "starting" | "en_cours" | "terminée"
   >("lobby");
   const [narration, setNarration] = useState<string | null>(null);
   const [stepType, setStepType] = useState<"collective" | "individual">(
@@ -106,6 +106,14 @@ export default function GamePage() {
                 g.currentNarration.suggestions[user.userId] ?? [],
               );
             }
+          }
+        }
+        if (g.status === "terminée") {
+          setGameStatus("terminée");
+          setCurrentStep(g.currentStep);
+          if (g.currentNarration) {
+            setNarration(g.currentNarration.narration);
+            setStepType(g.currentNarration.stepType);
           }
         }
       })
@@ -179,11 +187,16 @@ export default function GamePage() {
       setChoicesProgress(payload);
     }
 
+    function onGameEnded() {
+      setGameStatus("terminée");
+    }
+
     socket.on("lobby:update", onLobbyUpdate);
     socket.on("game:starting", onGameStarting);
     socket.on("game:started", onGameStarted);
     socket.on("game:error", onGameError);
     socket.on("step:choices:update", onStepChoicesUpdate);
+    socket.on("game:ended", onGameEnded);
 
     return () => {
       socket.emit("player:leave", { gameId, userId });
@@ -192,6 +205,7 @@ export default function GamePage() {
       socket.off("game:started", onGameStarted);
       socket.off("game:error", onGameError);
       socket.off("step:choices:update", onStepChoicesUpdate);
+      socket.off("game:ended", onGameEnded);
     };
   }, [gameId, user]);
 
@@ -263,7 +277,59 @@ export default function GamePage() {
             onChoice={handleChoice}
           />
         )}
+
+        {gameStatus === "terminée" && (
+          <EndScreen
+            totalSteps={totalSteps}
+            narration={narration}
+            onHome={() => router.push("/")}
+          />
+        )}
       </div>
+    </div>
+  );
+}
+
+function EndScreen({
+  totalSteps,
+  narration,
+  onHome,
+}: {
+  totalSteps: number;
+  narration: string | null;
+  onHome: () => void;
+}) {
+  return (
+    <div className="mx-auto flex max-w-2xl flex-col items-center gap-8 px-4 py-16 text-center">
+      {/* Trophy icon */}
+      <div className="flex size-20 items-center justify-center rounded-full border border-amber-500/30 bg-amber-500/10">
+        <Trophy className="size-10 text-amber-400" />
+      </div>
+
+      {/* Title */}
+      <div className="space-y-2">
+        <h1 className="text-3xl font-bold text-white">
+          L&apos;aventure est terminée&nbsp;!
+        </h1>
+        <p className="text-sm text-white/50">
+          {totalSteps} étape{totalSteps > 1 ? "s" : ""} accomplies
+        </p>
+      </div>
+
+      {/* Last narration as epilogue */}
+      {narration && (
+        <div className="w-full rounded-2xl border border-white/10 bg-white/5 p-6 text-left">
+          <p className="text-sm font-semibold uppercase tracking-wider text-purple-400">
+            Épilogue
+          </p>
+          <p className="mt-3 leading-relaxed text-white/80">{narration}</p>
+        </div>
+      )}
+
+      {/* Home button */}
+      <Button variant="purple" className="w-full max-w-xs" onClick={onHome}>
+        Retour à l&apos;accueil
+      </Button>
     </div>
   );
 }
