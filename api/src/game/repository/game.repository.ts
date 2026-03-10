@@ -17,6 +17,8 @@ export class GameRepository implements IGameRepository {
       status: "lobby",
       hostId: null,
       users: [],
+      currentNarration: null,
+      history: [],
     };
     db.push(game);
     return game;
