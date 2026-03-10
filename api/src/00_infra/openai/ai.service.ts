@@ -191,9 +191,7 @@ function buildMessages(input: GenerateNarrationInput) {
 
     const uniqueVotes = [
       ...new Set(
-        entry.choices
-          .map((c) => c.choice)
-          .filter((c) => c !== "(pas de vote)"),
+        entry.choices.map((c) => c.choice).filter((c) => c !== "(pas de vote)"),
       ),
     ];
     const synthesisNote =
