@@ -69,6 +69,7 @@ export default function GamePage() {
   const [totalSteps, setTotalSteps] = useState(0);
 
   const [user] = useState<{ userId: string; username: string } | null>(() => {
+    if (typeof window === "undefined") return null;
     const raw = localStorage.getItem("fantasia_user");
     return raw ? JSON.parse(raw) : null;
   });
