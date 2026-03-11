@@ -8,7 +8,7 @@ import { Navbar } from "@/components/navbar";
 import { Button } from "@/components/ui/button";
 import { BadgeClasse } from "@/components/badge-classe";
 import { getGame } from "@/lib/api";
-import type { Game, Player } from "@/lib/api";
+import type { Game, Player, PlayerSuggestion } from "@/lib/api";
 import type { AvatarId } from "@/lib/avatars";
 import { AVATARS } from "@/lib/avatars";
 import { Progress } from "@/components/ui/progress";
@@ -36,7 +36,7 @@ type GameStarted =
   | {
       stepType: "individual";
       narration: string;
-      suggestions: Record<string, string[]>;
+      suggestions: Record<string, PlayerSuggestion>;
       currentStep: number;
       totalSteps: number;
       timerMs: number;
@@ -66,6 +66,7 @@ export default function GamePage() {
   );
   const [collectiveChoices, setCollectiveChoices] = useState<string[]>([]);
   const [mySuggestions, setMySuggestions] = useState<string[]>([]);
+  const [mySituation, setMySituation] = useState<string | null>(null);
   const [hasChosen, setHasChosen] = useState(false);
   const [choicesProgress, setChoicesProgress] =
     useState<StepChoicesUpdate | null>(null);
@@ -117,9 +118,9 @@ export default function GamePage() {
             if (g.currentNarration.stepType === "collective") {
               setCollectiveChoices(g.currentNarration.choices);
             } else {
-              setMySuggestions(
-                g.currentNarration.suggestions[user.userId] ?? [],
-              );
+              const myData = g.currentNarration.suggestions[user.userId];
+              setMySuggestions(myData?.options ?? []);
+              setMySituation(myData?.situation ?? null);
             }
           }
         }
@@ -195,8 +196,11 @@ export default function GamePage() {
       if (payload.stepType === "collective") {
         setCollectiveChoices(payload.choices ?? []);
         setMySuggestions([]);
+        setMySituation(null);
       } else {
-        setMySuggestions(payload.suggestions?.[userId] ?? []);
+        const myData = payload.suggestions?.[userId];
+        setMySuggestions(myData?.options ?? []);
+        setMySituation(myData?.situation ?? null);
         setCollectiveChoices([]);
       }
 
@@ -336,12 +340,15 @@ export default function GamePage() {
           narration && (
             <GameScreen
               game={game}
+              players={players}
+              userId={user?.userId ?? null}
               currentStep={currentStep}
               totalSteps={totalSteps}
               narration={narration}
               stepType={stepType}
               collectiveChoices={collectiveChoices}
               mySuggestions={mySuggestions}
+              mySituation={mySituation}
               hasChosen={hasChosen}
               choicesProgress={choicesProgress}
               stepTimeLeft={stepTimeLeft}
@@ -564,12 +571,15 @@ function StartingScreen({
 
 function GameScreen({
   game,
+  players,
+  userId,
   currentStep,
   totalSteps,
   narration,
   stepType,
   collectiveChoices,
   mySuggestions,
+  mySituation,
   hasChosen,
   choicesProgress,
   stepTimeLeft,
@@ -579,12 +589,15 @@ function GameScreen({
   onChoice,
 }: {
   game: Game | null;
+  players: Player[];
+  userId: string | null;
   currentStep: number;
   totalSteps: number;
   narration: string;
   stepType: "collective" | "individual";
   collectiveChoices: string[];
   mySuggestions: string[];
+  mySituation: string | null;
   hasChosen: boolean;
   choicesProgress: StepChoicesUpdate | null;
   stepTimeLeft: number | null;
@@ -596,6 +609,7 @@ function GameScreen({
   const progress = Math.round((currentStep / totalSteps) * 100);
   const isCollective = stepType === "collective";
   const isLastStep = currentStep === totalSteps;
+  const otherPlayers = players.filter((p) => p.id !== userId);
 
   const timerColor =
     stepTimeLeft !== null && stepTimeLeft <= 5
@@ -679,12 +693,46 @@ function GameScreen({
 
       <div
         className={cn(
-          "transition-all duration-500",
+          "space-y-3 transition-all duration-500",
           showChoices && !isSynthèse
             ? "opacity-100"
             : "pointer-events-none opacity-0",
         )}
       >
+        {!isCollective && otherPlayers.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            {otherPlayers.map((player) => {
+              const avatar = AVATARS[player.avatar as AvatarId];
+              return (
+                <div
+                  key={player.id}
+                  className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 py-1"
+                >
+                  {avatar && <BadgeClasse variant={avatar.classe} />}
+                  <span className="text-xs text-white/60">
+                    {player.username}
+                  </span>
+                  <span className="flex items-center gap-1 text-xs text-purple-400">
+                    <Loader2 className="size-2.5 animate-spin" />
+                    En action
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {!isCollective && mySituation && (
+          <div className="rounded-xl border border-purple-500/20 bg-purple-500/5 p-4">
+            <p className="text-xs font-semibold uppercase tracking-wider text-purple-400">
+              Votre situation
+            </p>
+            <p className="mt-1.5 text-sm leading-relaxed text-white/80">
+              {mySituation}
+            </p>
+          </div>
+        )}
+
         {!hasChosen ? (
           <div className="space-y-3">
             <p className="text-sm font-semibold uppercase tracking-wider text-white/50">

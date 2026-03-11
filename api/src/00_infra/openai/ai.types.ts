@@ -23,6 +23,14 @@ export interface GenerateNarrationInput {
   history: NarrationHistoryEntry[];
 }
 
+/** micro-situation unique + choix pour un joueur lors d'une étape individuelle */
+export interface PlayerSuggestion {
+  /** 1-2 phrases décrivant la scène personnelle vécue par ce joueur */
+  situation: string;
+  /** 3 actions distinctes adaptées à son avatar */
+  options: string[];
+}
+
 export type AiNarrationOutput =
   | {
       stepType: "collective";
@@ -33,6 +41,6 @@ export type AiNarrationOutput =
   | {
       stepType: "individual";
       narration: string;
-      /** suggestions[playerId] = ["choice 1", "choice 2", "choice 3"] */
-      suggestions: Record<string, string[]>;
+      /** suggestions[playerId] = { situation, options } (FAN-71) */
+      suggestions: Record<string, PlayerSuggestion>;
     };

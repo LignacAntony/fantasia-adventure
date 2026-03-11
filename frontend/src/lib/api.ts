@@ -10,12 +10,18 @@ export type Player = {
   avatar: AvatarId;
 };
 
+/** FAN-71: micro-situation unique + choix pour un joueur lors d'une étape individuelle */
+export type PlayerSuggestion = {
+  situation: string;
+  options: string[];
+};
+
 export type NarrationOutput =
   | { stepType: "collective"; narration: string; choices: string[] }
   | {
       stepType: "individual";
       narration: string;
-      suggestions: Record<string, string[]>;
+      suggestions: Record<string, PlayerSuggestion>;
     };
 
 export type Game = {
