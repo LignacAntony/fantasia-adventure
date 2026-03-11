@@ -33,14 +33,14 @@ export interface PlayerSuggestion {
 
 export type AiNarrationOutput =
   | {
-    stepType: "collective";
-    narration: string;
-    /** 3 options communes soumises au vote du groupe */
-    choices: string[];
-  }
+      stepType: "collective";
+      narration: string;
+      /** 3 options communes soumises au vote du groupe */
+      choices: string[];
+    }
   | {
-    stepType: "individual";
-    narration: string;
-    /** suggestions[playerId] = { situation, options } (FAN-71) */
-    suggestions: Record<string, PlayerSuggestion>;
-  };
+      stepType: "individual";
+      narration: string;
+      /** suggestions[playerId] = { situation, options } (FAN-71) */
+      suggestions: Record<string, PlayerSuggestion>;
+    };

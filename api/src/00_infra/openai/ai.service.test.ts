@@ -256,16 +256,36 @@ describe("generateNarration()", () => {
           stepType: "collective",
           narration: "Le groupe entre dans la forêt.",
           choices: [
-            { playerId: "user-1", playerName: "Alice", avatar: "mage", choice: "Nous avançons" },
-            { playerId: "user-2", playerName: "Bob", avatar: "warrior", choice: "Nous avançons" },
+            {
+              playerId: "user-1",
+              playerName: "Alice",
+              avatar: "mage",
+              choice: "Nous avançons",
+            },
+            {
+              playerId: "user-2",
+              playerName: "Bob",
+              avatar: "warrior",
+              choice: "Nous avançons",
+            },
           ],
         },
         {
           stepType: "individual",
           narration: "Chacun affronte sa propre épreuve.",
           choices: [
-            { playerId: "user-1", playerName: "Alice", avatar: "mage", choice: "Lancer un sort" },
-            { playerId: "user-2", playerName: "Bob", avatar: "warrior", choice: "Attaquer" },
+            {
+              playerId: "user-1",
+              playerName: "Alice",
+              avatar: "mage",
+              choice: "Lancer un sort",
+            },
+            {
+              playerId: "user-2",
+              playerName: "Bob",
+              avatar: "warrior",
+              choice: "Attaquer",
+            },
           ],
         },
       ],
@@ -277,7 +297,7 @@ describe("generateNarration()", () => {
     const userMessages = body.messages.filter((m) => m.role === "user");
     const lastUserMessage = userMessages.at(-1);
     // Should instruct the AI to use "collective" since previous was "individual"
-    expect(lastUserMessage?.content).toContain("\"collective\"");
+    expect(lastUserMessage?.content).toContain('"collective"');
     expect(lastUserMessage?.content).toContain("ALTERNANCE OBLIGATOIRE");
   });
 
