@@ -4,7 +4,7 @@ import { AVATARS } from "@/types/avatar.js";
 import type { AvatarId } from "@/types/avatar.js";
 
 const MODEL = "gpt-4o-mini";
-const TIMEOUT_MS = 15_000;
+const TIMEOUT_MS = 120_000;
 const MAX_RETRIES = 1;
 
 // ─── Structured Outputs JSON Schema ────────────────────────────────
@@ -189,9 +189,19 @@ function buildMessages(input: GenerateNarrationInput) {
       .map((c) => `${c.playerName} (${c.avatar}) : ${c.choice}`)
       .join("\n");
 
+    const uniqueVotes = [
+      ...new Set(
+        entry.choices.map((c) => c.choice).filter((c) => c !== "(pas de vote)"),
+      ),
+    ];
+    const synthesisNote =
+      entry.stepType === "collective" && uniqueVotes.length > 1
+        ? "\n(Votes divergents — synthétise les décisions en une narration cohérente qui reflète la majorité.)"
+        : "";
+
     messages.push({
       role: "user",
-      content: `Choix des joueurs :\n${choicesSummary}\n\nGénère la narration pour l'étape suivante.`,
+      content: `Choix des joueurs :\n${choicesSummary}${synthesisNote}\n\nGénère la narration pour l'étape suivante.`,
     });
   }
 

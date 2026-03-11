@@ -29,6 +29,7 @@ type GameStarted =
       choices: string[];
       currentStep: number;
       totalSteps: number;
+      timerMs: number;
     }
   | {
       stepType: "individual";
@@ -36,6 +37,7 @@ type GameStarted =
       suggestions: Record<string, string[]>;
       currentStep: number;
       totalSteps: number;
+      timerMs: number;
     };
 
 type StepChoicesUpdate = {
@@ -76,6 +78,10 @@ export default function GamePage() {
 
   /** True once the first step narration has been received (game is truly in progress) */
   const hasStartedRef = useRef(false);
+
+  /** FAN-62: seconds remaining for the current step's choice timer */
+  const [stepTimeLeft, setStepTimeLeft] = useState<number | null>(null);
+  const timerIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Redirect if no user
   useEffect(() => {
@@ -132,7 +138,27 @@ export default function GamePage() {
       setHostId(payload.hostId);
     }
 
+    function startStepCountdown(ms: number) {
+      if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+      setStepTimeLeft(Math.ceil(ms / 1000));
+      timerIntervalRef.current = setInterval(() => {
+        setStepTimeLeft((prev) => {
+          if (prev === null || prev <= 1) {
+            clearInterval(timerIntervalRef.current!);
+            timerIntervalRef.current = null;
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+
     function onGameStarting(payload: GameStarting) {
+      if (timerIntervalRef.current) {
+        clearInterval(timerIntervalRef.current);
+        timerIntervalRef.current = null;
+      }
+      setStepTimeLeft(null);
       setGameStatus("starting");
       setCurrentStep(payload.currentStep);
       setTotalSteps(payload.totalSteps);
@@ -140,6 +166,7 @@ export default function GamePage() {
 
     function onGameStarted(payload: GameStarted) {
       hasStartedRef.current = true;
+      startStepCountdown(payload.timerMs);
       setNarration(payload.narration);
       setStepType(payload.stepType);
       setCurrentStep(payload.currentStep);
@@ -188,6 +215,11 @@ export default function GamePage() {
     }
 
     function onGameEnded() {
+      if (timerIntervalRef.current) {
+        clearInterval(timerIntervalRef.current);
+        timerIntervalRef.current = null;
+      }
+      setStepTimeLeft(null);
       setGameStatus("terminée");
     }
 
@@ -199,6 +231,10 @@ export default function GamePage() {
     socket.on("game:ended", onGameEnded);
 
     return () => {
+      if (timerIntervalRef.current) {
+        clearInterval(timerIntervalRef.current);
+        timerIntervalRef.current = null;
+      }
       socket.emit("player:leave", { gameId, userId });
       socket.off("lobby:update", onLobbyUpdate);
       socket.off("game:starting", onGameStarting);
@@ -274,6 +310,7 @@ export default function GamePage() {
             mySuggestions={mySuggestions}
             hasChosen={hasChosen}
             choicesProgress={choicesProgress}
+            stepTimeLeft={stepTimeLeft}
             onChoice={handleChoice}
           />
         )}
@@ -498,6 +535,7 @@ function GameScreen({
   mySuggestions,
   hasChosen,
   choicesProgress,
+  stepTimeLeft,
   onChoice,
 }: {
   game: Game | null;
@@ -509,10 +547,18 @@ function GameScreen({
   mySuggestions: string[];
   hasChosen: boolean;
   choicesProgress: StepChoicesUpdate | null;
+  stepTimeLeft: number | null;
   onChoice: (choice: string) => void;
 }) {
   const progress = Math.round((currentStep / totalSteps) * 100);
   const isCollective = stepType === "collective";
+
+  const timerColor =
+    stepTimeLeft !== null && stepTimeLeft <= 5
+      ? "text-red-400"
+      : stepTimeLeft !== null && stepTimeLeft <= 15
+        ? "text-amber-400"
+        : "text-white/40";
 
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-6 px-4 py-8">
@@ -520,9 +566,16 @@ function GameScreen({
       <div className="space-y-2">
         <div className="flex items-center justify-between text-sm">
           <span className="font-semibold text-white">{game?.name}</span>
-          <span className="text-white/50">
-            Étape {currentStep} / {totalSteps}
-          </span>
+          <div className="flex items-center gap-3">
+            {stepTimeLeft !== null && stepTimeLeft > 0 && (
+              <span className={`font-mono text-xs tabular-nums ${timerColor}`}>
+                ⏱ {stepTimeLeft}s
+              </span>
+            )}
+            <span className="text-white/50">
+              Étape {currentStep} / {totalSteps}
+            </span>
+          </div>
         </div>
         <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/10">
           <div
