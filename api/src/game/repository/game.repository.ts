@@ -46,6 +46,17 @@ export class GameRepository implements IGameRepository {
     return game;
   }
 
+  updateUserStatus(
+    gameId: string,
+    userId: string,
+    status: NonNullable<User["status"]>,
+  ): void {
+    const game = this.findById(gameId);
+    if (!game) return;
+    const user = game.users.find((u) => u.id === userId);
+    if (user) user.status = status;
+  }
+
   findAll(): Game[] {
     return db;
   }

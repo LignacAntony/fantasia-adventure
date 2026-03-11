@@ -159,7 +159,6 @@ export default function GamePage() {
           clearInterval(timerIntervalRef.current!);
           timerIntervalRef.current = null;
           setStepTimeLeft(0);
-          // FAN-66: timer expiry → État Synthèse
           setGameStatus((prev) => (prev === "en_cours" ? "synthèse" : prev));
         } else {
           setStepTimeLeft(remaining);

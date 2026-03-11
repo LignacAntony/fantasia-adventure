@@ -133,6 +133,38 @@ describe("removeUser()", () => {
   });
 });
 
+describe("updateUserStatus()", () => {
+  it("should update the status of an existing user", () => {
+    const game = repo.create(defaultInput);
+    repo.addUser(game.id, alice);
+    repo.updateUserStatus(game.id, alice.id, "absent");
+    const user = game.users.find((u) => u.id === alice.id);
+    expect(user?.status).toBe("absent");
+  });
+
+  it("should overwrite a previously set status", () => {
+    const game = repo.create(defaultInput);
+    repo.addUser(game.id, alice);
+    repo.updateUserStatus(game.id, alice.id, "passif");
+    repo.updateUserStatus(game.id, alice.id, "actif");
+    const user = game.users.find((u) => u.id === alice.id);
+    expect(user?.status).toBe("actif");
+  });
+
+  it("should not throw when game does not exist", () => {
+    expect(() =>
+      repo.updateUserStatus("non-existent-id", alice.id, "passif"),
+    ).not.toThrow();
+  });
+
+  it("should not throw when user does not exist in the game", () => {
+    const game = repo.create(defaultInput);
+    expect(() =>
+      repo.updateUserStatus(game.id, "non-existent-user", "absent"),
+    ).not.toThrow();
+  });
+});
+
 describe("findAll()", () => {
   it("should return an empty array when no games exist", () => {
     expect(repo.findAll()).toEqual([]);
