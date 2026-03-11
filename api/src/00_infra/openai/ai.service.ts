@@ -237,8 +237,8 @@ function buildMessages(input: GenerateNarrationInput) {
       entry.stepType === "collective" ? "individual" : "collective";
     const alternationHint = isLastEntry
       ? entry.stepType === "individual"
-        ? `\n\n[ALTERNANCE OBLIGATOIRE : étape précédente = "individual" → génère impérativement une étape "collective". La narration doit synthétiser les actions individuelles ci-dessus et montrer leur impact convergent sur la situation commune du groupe.]`
-        : `\n\n[ALTERNANCE OBLIGATOIRE : étape précédente = "collective" → génère impérativement une étape "individual".]`
+        ? `\n\n[ALTERNANCE OBLIGATOIRE : étape précédente = "individual" → génère impérativement une étape "${nextStepType}". La narration doit synthétiser les actions individuelles ci-dessus et montrer leur impact convergent sur la situation commune du groupe.]`
+        : `\n\n[ALTERNANCE OBLIGATOIRE : étape précédente = "collective" → génère impérativement une étape "${nextStepType}".]`
       : "";
 
     const userLabel =
