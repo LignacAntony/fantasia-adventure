@@ -44,6 +44,13 @@ function startChoiceTimer(io: Server, gameId: string): void {
     console.log(
       `[Socket] Timer expired for game ${gameId}, proceeding with partial choices`,
     );
+    const pending = pendingChoices.get(gameId);
+    for (const player of getPresentPlayers(gameId)) {
+      if (!pending?.has(player.id)) {
+        gameRepository.updateUserStatus(gameId, player.id, "passif");
+        console.log(`[Socket] ${player.id} marked passif in ${gameId}`);
+      }
+    }
     void generateNextStep(io, gameId);
   }, CHOICE_TIMER_MS);
   stepTimers.set(gameId, t);
@@ -126,7 +133,9 @@ async function generateNextStep(io: Server, gameId: string): Promise<void> {
           playerId: p.id,
           playerName: p.username,
           avatar: p.avatar,
-          choice: choices.get(p.id) ?? "(pas de vote)",
+          choice:
+            choices.get(p.id) ??
+            (p.status === "passif" ? "(passif)" : "(pas de vote)"),
         })),
       };
     } else {
@@ -138,7 +147,9 @@ async function generateNextStep(io: Server, gameId: string): Promise<void> {
           playerId: p.id,
           playerName: p.username,
           avatar: p.avatar,
-          choice: choices.get(p.id) ?? "",
+          choice:
+            choices.get(p.id) ??
+            (p.status === "passif" ? "(passif)" : "(pas de vote)"),
         })),
       };
     }
@@ -187,6 +198,10 @@ async function generateNextStep(io: Server, gameId: string): Promise<void> {
       game.currentStep = nextStep;
       game.currentNarration = narration;
       game.history = updatedHistory;
+
+      for (const user of game.users) {
+        gameRepository.updateUserStatus(gameId, user.id, "actif");
+      }
 
       const payload =
         narration.stepType === "collective"
@@ -249,6 +264,9 @@ export function registerGameSocketHandlers(io: Server): void {
       }
 
       addPresence(gameId, userId);
+      if (game.status === "en_cours") {
+        gameRepository.updateUserStatus(gameId, userId, "actif");
+      }
       socket.data.gameId = gameId;
       socket.data.userId = userId;
 
@@ -434,6 +452,8 @@ export function registerGameSocketHandlers(io: Server): void {
 
       // If game is in progress, check if remaining players have all submitted
       if (game?.status === "en_cours") {
+        gameRepository.updateUserStatus(gameId, userId, "absent");
+        console.log(`[Socket] ${userId} marked absent in ${gameId}`);
         const pending = pendingChoices.get(gameId);
         if (pending) {
           const presentPlayers = getPresentPlayers(gameId);

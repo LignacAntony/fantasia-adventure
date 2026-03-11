@@ -7,5 +7,10 @@ export interface IGameRepository {
   findById(id: string): Game | undefined;
   addUser(gameId: string, user: User): Game | undefined;
   removeUser(gameId: string, userId: string): Game | undefined;
+  updateUserStatus(
+    gameId: string,
+    userId: string,
+    status: NonNullable<User["status"]>,
+  ): void;
   findAll(): Game[];
 }
