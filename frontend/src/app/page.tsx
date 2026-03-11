@@ -127,7 +127,7 @@ function HomeContent() {
   const [sessionName, setSessionName] = useState("");
   const [themeSelect, setThemeSelect] = useState("");
   const [customTheme, setCustomTheme] = useState("");
-  const [totalSteps, setTotalSteps] = useState(7);
+  const [totalSteps, setTotalSteps] = useState(5);
   const [selectedAvatar, setSelectedAvatar] = useState<AvatarId | null>(null);
   const [takenAvatars, setTakenAvatars] = useState<AvatarId[]>([]);
   const [loading, setLoading] = useState(false);
@@ -407,16 +407,16 @@ function HomeContent() {
                 <input
                   id="create-steps"
                   type="range"
-                  min={5}
-                  max={15}
+                  min={1}
+                  max={5}
                   value={totalSteps}
                   onChange={(e) => setTotalSteps(Number(e.target.value))}
                   disabled={loading}
                   className="w-full accent-purple-500"
                 />
                 <div className="flex justify-between text-xs text-white/40">
+                  <span>1</span>
                   <span>5</span>
-                  <span>15</span>
                 </div>
               </div>
 

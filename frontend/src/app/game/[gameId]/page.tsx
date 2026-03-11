@@ -11,6 +11,8 @@ import { getGame } from "@/lib/api";
 import type { Game, Player } from "@/lib/api";
 import type { AvatarId } from "@/lib/avatars";
 import { AVATARS } from "@/lib/avatars";
+import { Progress } from "@/components/ui/progress";
+import { cn } from "@/lib/utils";
 
 type LobbyUpdate = {
   players: Player[];
@@ -56,7 +58,7 @@ export default function GamePage() {
 
   // Game state
   const [gameStatus, setGameStatus] = useState<
-    "lobby" | "starting" | "en_cours" | "terminée"
+    "lobby" | "starting" | "en_cours" | "synthèse" | "terminée"
   >("lobby");
   const [narration, setNarration] = useState<string | null>(null);
   const [stepType, setStepType] = useState<"collective" | "individual">(
@@ -82,6 +84,14 @@ export default function GamePage() {
   /** FAN-62: seconds remaining for the current step's choice timer */
   const [stepTimeLeft, setStepTimeLeft] = useState<number | null>(null);
   const timerIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  /** Total seconds of the step timer (for the timer progress bar ratio) */
+  const totalTimerSecondsRef = useRef<number>(60);
+
+  /** FAN-66: État Narration → Choix: choices are hidden until reading delay elapses */
+  const [showChoices, setShowChoices] = useState(false);
+  const showChoicesTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
 
   // Redirect if no user
   useEffect(() => {
@@ -101,6 +111,7 @@ export default function GamePage() {
         setTotalSteps(g.totalSteps);
         if (g.status === "en_cours") {
           setGameStatus("en_cours");
+          setShowChoices(true); // no reading delay on reconnect
           setCurrentStep(g.currentStep);
           if (g.currentNarration) {
             setNarration(g.currentNarration.narration);
@@ -140,7 +151,9 @@ export default function GamePage() {
 
     function startStepCountdown(ms: number) {
       if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
-      setStepTimeLeft(Math.ceil(ms / 1000));
+      const seconds = Math.ceil(ms / 1000);
+      totalTimerSecondsRef.current = seconds;
+      setStepTimeLeft(seconds);
       timerIntervalRef.current = setInterval(() => {
         setStepTimeLeft((prev) => {
           if (prev === null || prev <= 1) {
@@ -159,7 +172,13 @@ export default function GamePage() {
         timerIntervalRef.current = null;
       }
       setStepTimeLeft(null);
-      setGameStatus("starting");
+      // FAN-66: mid-game → keep narration visible (synthèse overlay)
+      //         initial start → blank loading screen
+      if (hasStartedRef.current) {
+        setGameStatus("synthèse");
+      } else {
+        setGameStatus("starting");
+      }
       setCurrentStep(payload.currentStep);
       setTotalSteps(payload.totalSteps);
     }
@@ -183,6 +202,15 @@ export default function GamePage() {
       }
 
       setGameStatus("en_cours");
+
+      // FAN-66: État Narration → État Choix (reading delay)
+      if (showChoicesTimeoutRef.current)
+        clearTimeout(showChoicesTimeoutRef.current);
+      setShowChoices(false);
+      showChoicesTimeoutRef.current = setTimeout(
+        () => setShowChoices(true),
+        2500,
+      );
     }
 
     function onGameError() {
@@ -199,11 +227,11 @@ export default function GamePage() {
           // Initial game start failed: go back to lobby
           return "lobby";
         }
-        if (prev === "en_cours") {
-          // Player reconnected during AI retry then AI failed.
-          // Reset submission state so they can re-submit choices.
+        if (prev === "en_cours" || prev === "synthèse") {
+          // AI failed during synthesis: reset so players can re-submit.
           setHasChosen(false);
           setChoicesProgress(null);
+          setShowChoices(true); // re-show choices immediately (no reading delay)
           return "en_cours";
         }
         return prev;
@@ -212,6 +240,10 @@ export default function GamePage() {
 
     function onStepChoicesUpdate(payload: StepChoicesUpdate) {
       setChoicesProgress(payload);
+      // FAN-66: once all players have voted, transition to État Synthèse
+      if (payload.submitted >= payload.total) {
+        setGameStatus((prev) => (prev === "en_cours" ? "synthèse" : prev));
+      }
     }
 
     function onGameEnded() {
@@ -235,6 +267,10 @@ export default function GamePage() {
         clearInterval(timerIntervalRef.current);
         timerIntervalRef.current = null;
       }
+      if (showChoicesTimeoutRef.current) {
+        clearTimeout(showChoicesTimeoutRef.current);
+        showChoicesTimeoutRef.current = null;
+      }
       socket.emit("player:leave", { gameId, userId });
       socket.off("lobby:update", onLobbyUpdate);
       socket.off("game:starting", onGameStarting);
@@ -244,6 +280,13 @@ export default function GamePage() {
       socket.off("game:ended", onGameEnded);
     };
   }, [gameId, user]);
+
+  // FAN-66: Timer expiry → État Synthèse
+  useEffect(() => {
+    if (stepTimeLeft === 0) {
+      setGameStatus((prev) => (prev === "en_cours" ? "synthèse" : prev));
+    }
+  }, [stepTimeLeft]);
 
   function copyJoinLink() {
     const link = `${window.location.origin}/?join=${gameId}`;
@@ -299,21 +342,25 @@ export default function GamePage() {
           <StartingScreen currentStep={currentStep} totalSteps={totalSteps} />
         )}
 
-        {gameStatus === "en_cours" && narration && (
-          <GameScreen
-            game={game}
-            currentStep={currentStep}
-            totalSteps={totalSteps}
-            narration={narration}
-            stepType={stepType}
-            collectiveChoices={collectiveChoices}
-            mySuggestions={mySuggestions}
-            hasChosen={hasChosen}
-            choicesProgress={choicesProgress}
-            stepTimeLeft={stepTimeLeft}
-            onChoice={handleChoice}
-          />
-        )}
+        {(gameStatus === "en_cours" || gameStatus === "synthèse") &&
+          narration && (
+            <GameScreen
+              game={game}
+              currentStep={currentStep}
+              totalSteps={totalSteps}
+              narration={narration}
+              stepType={stepType}
+              collectiveChoices={collectiveChoices}
+              mySuggestions={mySuggestions}
+              hasChosen={hasChosen}
+              choicesProgress={choicesProgress}
+              stepTimeLeft={stepTimeLeft}
+              showChoices={showChoices}
+              isSynthèse={gameStatus === "synthèse"}
+              totalTimerSeconds={totalTimerSecondsRef.current}
+              onChoice={handleChoice}
+            />
+          )}
 
         {gameStatus === "terminée" && (
           <EndScreen
@@ -536,6 +583,9 @@ function GameScreen({
   hasChosen,
   choicesProgress,
   stepTimeLeft,
+  showChoices,
+  isSynthèse,
+  totalTimerSeconds,
   onChoice,
 }: {
   game: Game | null;
@@ -548,10 +598,14 @@ function GameScreen({
   hasChosen: boolean;
   choicesProgress: StepChoicesUpdate | null;
   stepTimeLeft: number | null;
+  showChoices: boolean;
+  isSynthèse: boolean;
+  totalTimerSeconds: number;
   onChoice: (choice: string) => void;
 }) {
   const progress = Math.round((currentStep / totalSteps) * 100);
   const isCollective = stepType === "collective";
+  const isLastStep = currentStep === totalSteps;
 
   const timerColor =
     stepTimeLeft !== null && stepTimeLeft <= 5
@@ -560,9 +614,14 @@ function GameScreen({
         ? "text-amber-400"
         : "text-white/40";
 
+  const timerProgress =
+    stepTimeLeft !== null && totalTimerSeconds > 0
+      ? (stepTimeLeft / totalTimerSeconds) * 100
+      : 0;
+
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-6 px-4 py-8">
-      {/* Progress header */}
+      {/* FAN-67: Progress header */}
       <div className="space-y-2">
         <div className="flex items-center justify-between text-sm">
           <span className="font-semibold text-white">{game?.name}</span>
@@ -575,14 +634,27 @@ function GameScreen({
             <span className="text-white/50">
               Étape {currentStep} / {totalSteps}
             </span>
+            {/* FAN-67: Épilogue badge on last step */}
+            {isLastStep && (
+              <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-xs text-amber-300">
+                Épilogue
+              </span>
+            )}
           </div>
         </div>
-        <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/10">
-          <div
-            className="h-full rounded-full bg-purple-500 transition-all duration-700"
-            style={{ width: `${progress}%` }}
-          />
-        </div>
+        {/* FAN-67: shadcn/ui Progress — main step progress bar */}
+        <Progress
+          value={progress}
+          className={cn(
+            "h-1.5",
+            isLastStep &&
+              "animate-pulse [&>[data-slot=progress-indicator]]:bg-amber-400",
+          )}
+        />
+        {/* FAN-67: Timer sub-bar */}
+        {stepTimeLeft !== null && stepTimeLeft > 0 && (
+          <Progress value={timerProgress} className="h-0.5 opacity-40" />
+        )}
       </div>
 
       {/* Step type badge */}
@@ -608,46 +680,69 @@ function GameScreen({
         <p className="mt-3 leading-relaxed text-white/90">{narration}</p>
       </div>
 
-      {/* Choices / Suggestions */}
-      {!hasChosen ? (
-        <div className="space-y-3">
-          <p className="text-sm font-semibold uppercase tracking-wider text-white/50">
-            {isCollective ? "Vote du groupe" : "Tes actions"}
-          </p>
-          <div className="grid gap-2">
-            {(isCollective
-              ? (collectiveChoices ?? [])
-              : (mySuggestions ?? [])
-            ).map((option, i) => (
-              <button
-                key={i}
-                onClick={() => onChoice(option)}
-                className="rounded-xl border border-white/10 bg-white/5 p-4 text-left text-sm text-white/80 transition hover:border-purple-500/50 hover:bg-purple-500/10 hover:text-white"
-              >
-                <span className="mr-2 font-bold text-purple-400">{i + 1}.</span>
-                {option}
-              </button>
-            ))}
-          </div>
-        </div>
-      ) : (
-        /* Waiting for other players */
-        <div className="rounded-xl border border-white/10 bg-white/5 p-5 text-center">
-          <div className="flex items-center justify-center gap-2 text-white/70">
+      {/* FAN-66: État Synthèse overlay — shown while AI is generating */}
+      {isSynthèse && (
+        <div className="rounded-xl border border-purple-500/20 bg-purple-500/5 p-5 text-center">
+          <div className="flex items-center justify-center gap-3">
             <Loader2 className="size-4 animate-spin text-purple-400" />
-            <span className="text-sm">
-              {isCollective ? "Vote enregistré" : "Choix enregistré"} — En
-              attente des autres…
+            <span className="text-sm font-medium text-white/80">
+              L&apos;IA rédige la suite…
             </span>
           </div>
-          {choicesProgress && (
-            <p className="mt-2 text-xs text-white/40">
-              {choicesProgress.submitted} / {choicesProgress.total} joueur
-              {choicesProgress.total > 1 ? "s" : ""} ont répondu
-            </p>
-          )}
         </div>
       )}
+
+      {/* FAN-66: Choices section — fades in after reading delay, hidden in synthèse */}
+      <div
+        className={cn(
+          "transition-all duration-500",
+          showChoices && !isSynthèse
+            ? "opacity-100"
+            : "pointer-events-none opacity-0",
+        )}
+      >
+        {!hasChosen ? (
+          <div className="space-y-3">
+            <p className="text-sm font-semibold uppercase tracking-wider text-white/50">
+              {isCollective ? "Vote du groupe" : "Tes actions"}
+            </p>
+            <div className="grid gap-2">
+              {(isCollective
+                ? (collectiveChoices ?? [])
+                : (mySuggestions ?? [])
+              ).map((option, i) => (
+                <button
+                  key={i}
+                  onClick={() => onChoice(option)}
+                  className="rounded-xl border border-white/10 bg-white/5 p-4 text-left text-sm text-white/80 transition hover:border-purple-500/50 hover:bg-purple-500/10 hover:text-white"
+                >
+                  <span className="mr-2 font-bold text-purple-400">
+                    {i + 1}.
+                  </span>
+                  {option}
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : (
+          /* Waiting for other players */
+          <div className="rounded-xl border border-white/10 bg-white/5 p-5 text-center">
+            <div className="flex items-center justify-center gap-2 text-white/70">
+              <Loader2 className="size-4 animate-spin text-purple-400" />
+              <span className="text-sm">
+                {isCollective ? "Vote enregistré" : "Choix enregistré"} — En
+                attente des autres…
+              </span>
+            </div>
+            {choicesProgress && (
+              <p className="mt-2 text-xs text-white/40">
+                {choicesProgress.submitted} / {choicesProgress.total} joueur
+                {choicesProgress.total > 1 ? "s" : ""} ont répondu
+              </p>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
