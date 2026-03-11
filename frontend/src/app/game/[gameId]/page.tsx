@@ -152,15 +152,18 @@ export default function GamePage() {
       const seconds = Math.ceil(ms / 1000);
       setTotalTimerSeconds(seconds);
       setStepTimeLeft(seconds);
+      let remaining = seconds;
       timerIntervalRef.current = setInterval(() => {
-        setStepTimeLeft((prev) => {
-          if (prev === null || prev <= 1) {
-            clearInterval(timerIntervalRef.current!);
-            timerIntervalRef.current = null;
-            return 0;
-          }
-          return prev - 1;
-        });
+        remaining -= 1;
+        if (remaining <= 0) {
+          clearInterval(timerIntervalRef.current!);
+          timerIntervalRef.current = null;
+          setStepTimeLeft(0);
+          // FAN-66: timer expiry → État Synthèse
+          setGameStatus((prev) => (prev === "en_cours" ? "synthèse" : prev));
+        } else {
+          setStepTimeLeft(remaining);
+        }
       }, 1000);
     }
 
@@ -275,12 +278,6 @@ export default function GamePage() {
       socket.off("game:ended", onGameEnded);
     };
   }, [gameId, user]);
-
-  useEffect(() => {
-    if (stepTimeLeft === 0) {
-      setGameStatus((prev) => (prev === "en_cours" ? "synthèse" : prev));
-    }
-  }, [stepTimeLeft]);
 
   function copyJoinLink() {
     const link = `${window.location.origin}/?join=${gameId}`;
