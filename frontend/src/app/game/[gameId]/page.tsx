@@ -81,13 +81,11 @@ export default function GamePage() {
   /** True once the first step narration has been received (game is truly in progress) */
   const hasStartedRef = useRef(false);
 
-  /** FAN-62: seconds remaining for the current step's choice timer */
   const [stepTimeLeft, setStepTimeLeft] = useState<number | null>(null);
   const timerIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   /** Total seconds of the step timer (for the timer progress bar ratio) */
-  const totalTimerSecondsRef = useRef<number>(60);
+  const [totalTimerSeconds, setTotalTimerSeconds] = useState<number>(60);
 
-  /** FAN-66: État Narration → Choix: choices are hidden until reading delay elapses */
   const [showChoices, setShowChoices] = useState(false);
   const showChoicesTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
     null,
@@ -152,7 +150,7 @@ export default function GamePage() {
     function startStepCountdown(ms: number) {
       if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
       const seconds = Math.ceil(ms / 1000);
-      totalTimerSecondsRef.current = seconds;
+      setTotalTimerSeconds(seconds);
       setStepTimeLeft(seconds);
       timerIntervalRef.current = setInterval(() => {
         setStepTimeLeft((prev) => {
@@ -172,7 +170,6 @@ export default function GamePage() {
         timerIntervalRef.current = null;
       }
       setStepTimeLeft(null);
-      // FAN-66: mid-game → keep narration visible (synthèse overlay)
       //         initial start → blank loading screen
       if (hasStartedRef.current) {
         setGameStatus("synthèse");
@@ -203,7 +200,6 @@ export default function GamePage() {
 
       setGameStatus("en_cours");
 
-      // FAN-66: État Narration → État Choix (reading delay)
       if (showChoicesTimeoutRef.current)
         clearTimeout(showChoicesTimeoutRef.current);
       setShowChoices(false);
@@ -240,7 +236,6 @@ export default function GamePage() {
 
     function onStepChoicesUpdate(payload: StepChoicesUpdate) {
       setChoicesProgress(payload);
-      // FAN-66: once all players have voted, transition to État Synthèse
       if (payload.submitted >= payload.total) {
         setGameStatus((prev) => (prev === "en_cours" ? "synthèse" : prev));
       }
@@ -281,7 +276,6 @@ export default function GamePage() {
     };
   }, [gameId, user]);
 
-  // FAN-66: Timer expiry → État Synthèse
   useEffect(() => {
     if (stepTimeLeft === 0) {
       setGameStatus((prev) => (prev === "en_cours" ? "synthèse" : prev));
@@ -357,7 +351,7 @@ export default function GamePage() {
               stepTimeLeft={stepTimeLeft}
               showChoices={showChoices}
               isSynthèse={gameStatus === "synthèse"}
-              totalTimerSeconds={totalTimerSecondsRef.current}
+              totalTimerSeconds={totalTimerSeconds}
               onChoice={handleChoice}
             />
           )}
@@ -621,7 +615,6 @@ function GameScreen({
 
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-6 px-4 py-8">
-      {/* FAN-67: Progress header */}
       <div className="space-y-2">
         <div className="flex items-center justify-between text-sm">
           <span className="font-semibold text-white">{game?.name}</span>
@@ -634,7 +627,6 @@ function GameScreen({
             <span className="text-white/50">
               Étape {currentStep} / {totalSteps}
             </span>
-            {/* FAN-67: Épilogue badge on last step */}
             {isLastStep && (
               <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-xs text-amber-300">
                 Épilogue
@@ -642,7 +634,6 @@ function GameScreen({
             )}
           </div>
         </div>
-        {/* FAN-67: shadcn/ui Progress — main step progress bar */}
         <Progress
           value={progress}
           className={cn(
@@ -651,7 +642,6 @@ function GameScreen({
               "animate-pulse [&>[data-slot=progress-indicator]]:bg-amber-400",
           )}
         />
-        {/* FAN-67: Timer sub-bar */}
         {stepTimeLeft !== null && stepTimeLeft > 0 && (
           <Progress value={timerProgress} className="h-0.5 opacity-40" />
         )}
@@ -680,7 +670,6 @@ function GameScreen({
         <p className="mt-3 leading-relaxed text-white/90">{narration}</p>
       </div>
 
-      {/* FAN-66: État Synthèse overlay — shown while AI is generating */}
       {isSynthèse && (
         <div className="rounded-xl border border-purple-500/20 bg-purple-500/5 p-5 text-center">
           <div className="flex items-center justify-center gap-3">
@@ -692,7 +681,6 @@ function GameScreen({
         </div>
       )}
 
-      {/* FAN-66: Choices section — fades in after reading delay, hidden in synthèse */}
       <div
         className={cn(
           "transition-all duration-500",

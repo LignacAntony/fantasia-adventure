@@ -58,7 +58,7 @@ describe("CreateGameUsecase", () => {
   it("should return invalidArgs when totalSteps is out of range", async () => {
     const result: Result = await usecase.execute({
       ...validBody,
-      totalSteps: 3,
+      totalSteps: 6,
     });
     expect(result).toBe("invalidArgs");
   });

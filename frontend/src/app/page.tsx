@@ -143,7 +143,7 @@ function HomeContent() {
     setSessionName("");
     setThemeSelect("");
     setCustomTheme("");
-    setTotalSteps(7);
+    setTotalSteps(5);
     setStep(1);
     setSelectedAvatar(null);
     setTakenAvatars([]);
