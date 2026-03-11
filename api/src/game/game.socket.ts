@@ -124,7 +124,6 @@ async function generateNextStep(io: Server, gameId: string): Promise<void> {
     let historyEntry: NarrationHistoryEntry;
 
     if (currentNarration?.stepType === "collective") {
-      // FAN-63: keep actual individual choices (no majority remapping)
       // The AI prompt will synthesize divergent votes into a coherent narrative.
       historyEntry = {
         stepType: "collective",
@@ -139,18 +138,27 @@ async function generateNextStep(io: Server, gameId: string): Promise<void> {
         })),
       };
     } else {
-      // Individual: each player's own choice
+      // Individual: each player's own choice + their micro-situation (for AI synthesis)
+      const suggestions =
+        currentNarration?.stepType === "individual"
+          ? currentNarration.suggestions
+          : undefined;
+
       historyEntry = {
         stepType: "individual",
         narration: currentNarration?.narration ?? "",
-        choices: presentPlayers.map((p) => ({
-          playerId: p.id,
-          playerName: p.username,
-          avatar: p.avatar,
-          choice:
-            choices.get(p.id) ??
-            (p.status === "passif" ? "(passif)" : "(pas de vote)"),
-        })),
+        choices: presentPlayers.map((p) => {
+          const situation = suggestions?.[p.id]?.situation;
+          return {
+            playerId: p.id,
+            playerName: p.username,
+            avatar: p.avatar,
+            choice:
+              choices.get(p.id) ??
+              (p.status === "passif" ? "(passif)" : "(pas de vote)"),
+            ...(situation !== undefined ? { situation } : {}),
+          };
+        }),
       };
     }
 

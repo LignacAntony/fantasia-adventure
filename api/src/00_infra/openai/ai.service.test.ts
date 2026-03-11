@@ -243,7 +243,7 @@ describe("generateNarration()", () => {
     expect(lastUserMessage?.content).toContain("ALTERNANCE OBLIGATOIRE");
   });
 
-  it("should include collective hint when previous step was individual", async () => {
+  it("should include collective hint + cross-synthesis when previous step was individual", async () => {
     mockCreate.mockResolvedValueOnce(
       mockCollectiveResponse("Étape 3...") as never,
     );
@@ -279,12 +279,15 @@ describe("generateNarration()", () => {
               playerName: "Alice",
               avatar: "mage",
               choice: "Lancer un sort",
+              situation:
+                "Alice affronte un spectre solitaire dans une clairière.",
             },
             {
               playerId: "user-2",
               playerName: "Bob",
               avatar: "warrior",
               choice: "Attaquer",
+              situation: "Bob découvre un piège tendu par des bandits.",
             },
           ],
         },
@@ -296,9 +299,21 @@ describe("generateNarration()", () => {
     ];
     const userMessages = body.messages.filter((m) => m.role === "user");
     const lastUserMessage = userMessages.at(-1);
+
     // Should instruct the AI to use "collective" since previous was "individual"
     expect(lastUserMessage?.content).toContain('"collective"');
     expect(lastUserMessage?.content).toContain("ALTERNANCE OBLIGATOIRE");
+    // Should include the cross-synthesis instruction
+    expect(lastUserMessage?.content).toContain("synthétiser");
+    // Should include individual situations for cross-impact synthesis
+    expect(lastUserMessage?.content).toContain(
+      "Alice affronte un spectre solitaire",
+    );
+    expect(lastUserMessage?.content).toContain("Bob découvre un piège");
+    // User label should be "Résultats des actions individuelles"
+    expect(lastUserMessage?.content).toContain(
+      "Résultats des actions individuelles",
+    );
   });
 
   it("should include collective hint in initial prompt when history is empty", async () => {
