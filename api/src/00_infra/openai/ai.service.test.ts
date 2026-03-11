@@ -38,10 +38,12 @@ const mockIndividualResponse = (narration: string) => ({
           suggestions: [
             {
               playerId: "user-1",
+              situation: "Alice aperçoit un parchemin maudit à ses pieds.",
               options: ["Lancer un sort", "Observer", "Fuir"],
             },
             {
               playerId: "user-2",
+              situation: "Bob fait face à un garde ennemi.",
               options: ["Attaquer", "Défendre", "Négocier"],
             },
           ],
@@ -85,8 +87,11 @@ describe("generateNarration()", () => {
     expect(result.stepType).toBe("individual");
     expect(result.narration).toBe("La forêt s'obscurcit...");
     if (result.stepType === "individual") {
-      expect(result.suggestions["user-1"]).toHaveLength(3);
-      expect(result.suggestions["user-2"]).toHaveLength(3);
+      expect(result.suggestions["user-1"]?.options).toHaveLength(3);
+      expect(result.suggestions["user-2"]?.options).toHaveLength(3);
+      expect(result.suggestions["user-1"]?.situation).toBe(
+        "Alice aperçoit un parchemin maudit à ses pieds.",
+      );
     }
   });
 
@@ -198,6 +203,99 @@ describe("generateNarration()", () => {
     expect(assistantMessage?.content).toContain("collective");
   });
 
+  it("should include alternation hint in last user message based on previous stepType", async () => {
+    mockCreate.mockResolvedValueOnce(
+      mockIndividualResponse("Chapitre 2...") as never,
+    );
+
+    await generateNarration({
+      ...baseInput,
+      currentStep: 2,
+      history: [
+        {
+          stepType: "collective",
+          narration: "Le groupe entre dans la forêt.",
+          choices: [
+            {
+              playerId: "user-1",
+              playerName: "Alice",
+              avatar: "mage",
+              choice: "Nous avançons ensemble",
+            },
+            {
+              playerId: "user-2",
+              playerName: "Bob",
+              avatar: "warrior",
+              choice: "Nous avançons ensemble",
+            },
+          ],
+        },
+      ],
+    });
+
+    const [body] = mockCreate.mock.calls[0] as unknown as [
+      { messages: { role: string; content: string }[] },
+    ];
+    const userMessages = body.messages.filter((m) => m.role === "user");
+    const lastUserMessage = userMessages.at(-1);
+    // Should instruct the AI to use "individual" since previous was "collective"
+    expect(lastUserMessage?.content).toContain("individual");
+    expect(lastUserMessage?.content).toContain("ALTERNANCE OBLIGATOIRE");
+  });
+
+  it("should include collective hint when previous step was individual", async () => {
+    mockCreate.mockResolvedValueOnce(
+      mockCollectiveResponse("Étape 3...") as never,
+    );
+
+    await generateNarration({
+      ...baseInput,
+      currentStep: 3,
+      history: [
+        {
+          stepType: "collective",
+          narration: "Le groupe entre dans la forêt.",
+          choices: [
+            { playerId: "user-1", playerName: "Alice", avatar: "mage", choice: "Nous avançons" },
+            { playerId: "user-2", playerName: "Bob", avatar: "warrior", choice: "Nous avançons" },
+          ],
+        },
+        {
+          stepType: "individual",
+          narration: "Chacun affronte sa propre épreuve.",
+          choices: [
+            { playerId: "user-1", playerName: "Alice", avatar: "mage", choice: "Lancer un sort" },
+            { playerId: "user-2", playerName: "Bob", avatar: "warrior", choice: "Attaquer" },
+          ],
+        },
+      ],
+    });
+
+    const [body] = mockCreate.mock.calls[0] as unknown as [
+      { messages: { role: string; content: string }[] },
+    ];
+    const userMessages = body.messages.filter((m) => m.role === "user");
+    const lastUserMessage = userMessages.at(-1);
+    // Should instruct the AI to use "collective" since previous was "individual"
+    expect(lastUserMessage?.content).toContain("\"collective\"");
+    expect(lastUserMessage?.content).toContain("ALTERNANCE OBLIGATOIRE");
+  });
+
+  it("should include collective hint in initial prompt when history is empty", async () => {
+    mockCreate.mockResolvedValueOnce(
+      mockCollectiveResponse("Le monde s'ouvre...") as never,
+    );
+
+    await generateNarration(baseInput);
+
+    const [body] = mockCreate.mock.calls[0] as unknown as [
+      { messages: { role: string; content: string }[] },
+    ];
+    const userMessages = body.messages.filter((m) => m.role === "user");
+    expect(userMessages[0]?.content).toContain("collective");
+    expect(userMessages[0]?.content).toContain("TYPE D'ÉTAPE");
+  });
+
   it("should retry once on failure and succeed", async () => {
     mockCreate
       .mockRejectedValueOnce(new Error("Network error"))
@@ -245,10 +343,12 @@ describe("generateNarration()", () => {
               suggestions: [
                 {
                   playerId: "Alice",
+                  situation: "Alice découvre une carte au trésor.",
                   options: ["Option 1", "Option 2", "Option 3"],
                 },
                 {
                   playerId: "Bob",
+                  situation: "Bob affronte un garde solitaire.",
                   options: ["Option A", "Option B", "Option C"],
                 },
               ],
@@ -262,16 +362,14 @@ describe("generateNarration()", () => {
 
     expect(result.stepType).toBe("individual");
     if (result.stepType === "individual") {
-      expect(result.suggestions["user-1"]).toEqual([
-        "Option 1",
-        "Option 2",
-        "Option 3",
-      ]);
-      expect(result.suggestions["user-2"]).toEqual([
-        "Option A",
-        "Option B",
-        "Option C",
-      ]);
+      expect(result.suggestions["user-1"]).toEqual({
+        situation: "Alice découvre une carte au trésor.",
+        options: ["Option 1", "Option 2", "Option 3"],
+      });
+      expect(result.suggestions["user-2"]).toEqual({
+        situation: "Bob affronte un garde solitaire.",
+        options: ["Option A", "Option B", "Option C"],
+      });
     }
   });
 

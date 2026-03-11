@@ -1,5 +1,9 @@
 import { openaiClient } from "./openai.client.js";
-import type { AiNarrationOutput, GenerateNarrationInput } from "./ai.types.js";
+import type {
+  AiNarrationOutput,
+  GenerateNarrationInput,
+  PlayerSuggestion,
+} from "./ai.types.js";
 import { AVATARS } from "@/types/avatar.js";
 import type { AvatarId } from "@/types/avatar.js";
 
@@ -33,10 +37,11 @@ const NARRATION_SCHEMA = {
           type: "array" as const,
           items: {
             type: "object" as const,
-            required: ["playerId", "options"] as const,
+            required: ["playerId", "situation", "options"] as const,
             additionalProperties: false,
             properties: {
               playerId: { type: "string" as const },
+              situation: { type: "string" as const },
               options: {
                 type: "array" as const,
                 items: { type: "string" as const },
@@ -55,7 +60,11 @@ interface RawAiResponse {
   stepType: "collective" | "individual";
   narration: string;
   choices: string[] | null;
-  suggestions: Array<{ playerId: string; options: string[] }> | null;
+  suggestions: Array<{
+    playerId: string;
+    situation: string;
+    options: string[];
+  }> | null;
 }
 
 // ─── Helpers ───────────────────────────────────────────────────────
@@ -65,9 +74,9 @@ interface RawAiResponse {
  * The AI sometimes uses player names instead of UUIDs despite the schema.
  */
 function normalizeSuggestionKeys(
-  raw: Record<string, string[]>,
+  raw: Record<string, PlayerSuggestion>,
   players: Array<{ id: string; username: string }>,
-): Record<string, string[]> {
+): Record<string, PlayerSuggestion> {
   const playerIds = new Set(players.map((p) => p.id));
 
   // Fast path: all keys are already valid player IDs
@@ -76,14 +85,12 @@ function normalizeSuggestionKeys(
   console.warn(
     "[AiService] Suggestion keys don't match player IDs — remapping",
   );
-  const normalized: Record<string, string[]> = {};
+  const normalized: Record<string, PlayerSuggestion> = {};
 
-  for (const [key, suggestions] of Object.entries(raw)) {
-    if (!Array.isArray(suggestions)) continue;
-
+  for (const [key, suggestion] of Object.entries(raw)) {
     // Exact ID match (partial hits)
     if (playerIds.has(key)) {
-      normalized[key] = suggestions;
+      normalized[key] = suggestion;
       continue;
     }
 
@@ -92,12 +99,12 @@ function normalizeSuggestionKeys(
       (p) => p.username.toLowerCase() === key.toLowerCase(),
     );
     if (match && !normalized[match.id]) {
-      normalized[match.id] = suggestions;
+      normalized[match.id] = suggestion;
     }
   }
 
   // Last resort: if AI returned the right count but wrong keys, assign positionally
-  const rawEntries = Object.entries(raw).filter(([, v]) => Array.isArray(v));
+  const rawEntries = Object.entries(raw);
   if (
     Object.keys(normalized).length === 0 &&
     rawEntries.length === players.length
@@ -134,13 +141,21 @@ RÈGLES GÉNÉRALES :
 - Interdiction de reproduire des personnages, lieux ou intrigues d'œuvres existantes
 - Faire avancer l'histoire à chaque étape, ne pas tourner en rond
 
-TYPE D'ÉTAPE — tu choisis le plus cohérent avec la situation narrative :
+TYPE D'ÉTAPE — règle d'ALTERNANCE OBLIGATOIRE :
+- Alterne systématiquement entre "collective" et "individual" à chaque étape.
+- Si la dernière étape générée était "collective" → tu DOIS choisir "individual".
+- Si la dernière étape générée était "individual" → tu DOIS choisir "collective".
+- Étape 1 (pas d'historique) : commence par "collective".
+- Le message de l'utilisateur indique également le type attendu — tu dois le respecter.
+
 - "collective" : situation de groupe (exploration, décision narrative commune, obstacle partagé).
   → Fournis 3 options dans "choices", rédigées à la 1ère personne du pluriel (ex: "Nous...").
   → Mets "suggestions" à null.
-- "individual" : situation où chaque joueur agit selon ses propres capacités (combat, rencontre solo, événement personnel).
-  → Fournis "suggestions" avec exactement 3 options PAR joueur, adaptées à son avatar.
-  → Les suggestions DOIVENT être différentes entre les joueurs.
+- "individual" : situation où chaque joueur vit une micro-situation UNIQUE selon son rôle (combat, rencontre solo, marchand, événement personnel).
+  → Pour chaque joueur, fournis :
+    - "situation" : 1-2 phrases décrivant la scène personnelle vécue par CE joueur (distincte des autres).
+    - "options" : exactement 3 actions différentes adaptées à son avatar et sa situation.
+  → Les situations ET les options doivent être UNIQUES et différentes entre les joueurs.
   → Mets "choices" à null.
 
 Ne mets JAMAIS les options dans la narration ; elles doivent être UNIQUEMENT dans "choices" ou "suggestions".
@@ -165,10 +180,10 @@ FORMAT DE RÉPONSE — le schéma JSON est imposé automatiquement. Exemples :
 Étape individuelle :
 {
   "stepType": "individual",
-  "narration": "texte de narration",
+  "narration": "texte de narration commun au groupe",
   "choices": null,
   "suggestions": [
-    ${input.players.map((p) => `{ "playerId": "${p.id}", "options": ["action 1 pour ${p.username}", "action 2", "action 3"] }`).join(",\n    ")}
+    ${input.players.map((p) => `{ "playerId": "${p.id}", "situation": "micro-situation unique pour ${p.username}", "options": ["action 1 pour ${p.username}", "action 2", "action 3"] }`).join(",\n    ")}
   ]
 }`;
 }
@@ -176,7 +191,9 @@ FORMAT DE RÉPONSE — le schéma JSON est imposé automatiquement. Exemples :
 function buildMessages(input: GenerateNarrationInput) {
   const messages: { role: "user" | "assistant"; content: string }[] = [];
 
-  for (const entry of input.history) {
+  for (let i = 0; i < input.history.length; i++) {
+    const entry = input.history[i]!;
+
     messages.push({
       role: "assistant",
       content: JSON.stringify({
@@ -199,16 +216,24 @@ function buildMessages(input: GenerateNarrationInput) {
         ? "\n(Votes divergents — synthétise les décisions en une narration cohérente qui reflète la majorité.)"
         : "";
 
+    // On the last history entry, add an explicit alternation hint for the AI
+    const isLastEntry = i === input.history.length - 1;
+    const nextStepType =
+      entry.stepType === "collective" ? "individual" : "collective";
+    const alternationHint = isLastEntry
+      ? `\n\n[ALTERNANCE OBLIGATOIRE : étape précédente = "${entry.stepType}" → génère impérativement une étape "${nextStepType}"]`
+      : "";
+
     messages.push({
       role: "user",
-      content: `Choix des joueurs :\n${choicesSummary}${synthesisNote}\n\nGénère la narration pour l'étape suivante.`,
+      content: `Choix des joueurs :\n${choicesSummary}${synthesisNote}\n\nGénère la narration pour l'étape suivante.${alternationHint}`,
     });
   }
 
   if (input.history.length === 0) {
     messages.push({
       role: "user",
-      content: `Génère le contexte narratif initial : description du monde, situation de départ et objectif commun. C'est l'étape 1/${input.totalSteps}.`,
+      content: `Génère le contexte narratif initial : description du monde, situation de départ et objectif commun. C'est l'étape 1/${input.totalSteps}.\n\n[TYPE D'ÉTAPE : commence par "collective" pour établir le contexte commun du groupe.]`,
     });
   }
 
@@ -269,10 +294,12 @@ async function callOpenAi(
       );
     }
 
-    // Transform array-of-objects → Record<string, string[]>
-    const suggestionsRecord: Record<string, string[]> = {};
+    const suggestionsRecord: Record<string, PlayerSuggestion> = {};
     for (const entry of raw.suggestions) {
-      suggestionsRecord[entry.playerId] = entry.options;
+      suggestionsRecord[entry.playerId] = {
+        situation: entry.situation,
+        options: entry.options,
+      };
     }
 
     const suggestions = normalizeSuggestionKeys(
