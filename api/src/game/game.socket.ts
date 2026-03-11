@@ -206,21 +206,21 @@ async function generateNextStep(io: Server, gameId: string): Promise<void> {
       const payload =
         narration.stepType === "collective"
           ? {
-            stepType: "collective" as const,
-            narration: narration.narration,
-            choices: narration.choices,
-            currentStep: nextStep,
-            totalSteps: game.totalSteps,
-            timerMs: CHOICE_TIMER_MS,
-          }
+              stepType: "collective" as const,
+              narration: narration.narration,
+              choices: narration.choices,
+              currentStep: nextStep,
+              totalSteps: game.totalSteps,
+              timerMs: CHOICE_TIMER_MS,
+            }
           : {
-            stepType: "individual" as const,
-            narration: narration.narration,
-            suggestions: narration.suggestions,
-            currentStep: nextStep,
-            totalSteps: game.totalSteps,
-            timerMs: CHOICE_TIMER_MS,
-          };
+              stepType: "individual" as const,
+              narration: narration.narration,
+              suggestions: narration.suggestions,
+              currentStep: nextStep,
+              totalSteps: game.totalSteps,
+              timerMs: CHOICE_TIMER_MS,
+            };
 
       io.to(gameId).emit("game:started", payload);
       startChoiceTimer(io, gameId);
@@ -357,21 +357,21 @@ export function registerGameSocketHandlers(io: Server): void {
         const payload =
           narration.stepType === "collective"
             ? {
-              stepType: "collective" as const,
-              narration: narration.narration,
-              choices: narration.choices,
-              currentStep: 1,
-              totalSteps: game.totalSteps,
-              timerMs: CHOICE_TIMER_MS,
-            }
+                stepType: "collective" as const,
+                narration: narration.narration,
+                choices: narration.choices,
+                currentStep: 1,
+                totalSteps: game.totalSteps,
+                timerMs: CHOICE_TIMER_MS,
+              }
             : {
-              stepType: "individual" as const,
-              narration: narration.narration,
-              suggestions: narration.suggestions,
-              currentStep: 1,
-              totalSteps: game.totalSteps,
-              timerMs: CHOICE_TIMER_MS,
-            };
+                stepType: "individual" as const,
+                narration: narration.narration,
+                suggestions: narration.suggestions,
+                currentStep: 1,
+                totalSteps: game.totalSteps,
+                timerMs: CHOICE_TIMER_MS,
+              };
 
         io.to(gameId).emit("game:started", payload);
         startChoiceTimer(io, gameId);
