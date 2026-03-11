@@ -151,6 +151,7 @@ TYPE D'ÉTAPE — règle d'ALTERNANCE OBLIGATOIRE :
 - "collective" : situation de groupe (exploration, décision narrative commune, obstacle partagé).
   → Fournis 3 options dans "choices", rédigées à la 1ère personne du pluriel (ex: "Nous...").
   → Mets "suggestions" à null.
+  → Si l'étape précédente était "individual" : la narration DOIT synthétiser les actions de chaque joueur et montrer comment elles ont convergé pour faire évoluer la situation commune du groupe.
 - "individual" : situation où chaque joueur vit une micro-situation UNIQUE selon son rôle (combat, rencontre solo, marchand, événement personnel).
   → Pour chaque joueur, fournis :
     - "situation" : 1-2 phrases décrivant la scène personnelle vécue par CE joueur (distincte des autres).
@@ -202,9 +203,23 @@ function buildMessages(input: GenerateNarrationInput) {
       }),
     });
 
-    const choicesSummary = entry.choices
-      .map((c) => `${c.playerName} (${c.avatar}) : ${c.choice}`)
-      .join("\n");
+    // Format choices differently for individual vs collective steps
+    let choicesSummary: string;
+    if (entry.stepType === "individual") {
+      // Include per-player micro-situation so the AI can synthesize impacts
+      choicesSummary = entry.choices
+        .map((c) => {
+          const situationLine = c.situation
+            ? `\n  situation : "${c.situation}"`
+            : "";
+          return `${c.playerName} (${c.avatar}) :${situationLine}\n  action choisie : "${c.choice}"`;
+        })
+        .join("\n");
+    } else {
+      choicesSummary = entry.choices
+        .map((c) => `${c.playerName} (${c.avatar}) : ${c.choice}`)
+        .join("\n");
+    }
 
     const uniqueVotes = [
       ...new Set(
@@ -221,12 +236,19 @@ function buildMessages(input: GenerateNarrationInput) {
     const nextStepType =
       entry.stepType === "collective" ? "individual" : "collective";
     const alternationHint = isLastEntry
-      ? `\n\n[ALTERNANCE OBLIGATOIRE : étape précédente = "${entry.stepType}" → génère impérativement une étape "${nextStepType}"]`
+      ? entry.stepType === "individual"
+        ? `\n\n[ALTERNANCE OBLIGATOIRE : étape précédente = "individual" → génère impérativement une étape "collective". La narration doit synthétiser les actions individuelles ci-dessus et montrer leur impact convergent sur la situation commune du groupe.]`
+        : `\n\n[ALTERNANCE OBLIGATOIRE : étape précédente = "collective" → génère impérativement une étape "individual".]`
       : "";
+
+    const userLabel =
+      entry.stepType === "individual"
+        ? "Résultats des actions individuelles"
+        : "Choix des joueurs";
 
     messages.push({
       role: "user",
-      content: `Choix des joueurs :\n${choicesSummary}${synthesisNote}\n\nGénère la narration pour l'étape suivante.${alternationHint}`,
+      content: `${userLabel} :\n${choicesSummary}${synthesisNote}\n\nGénère la narration pour l'étape suivante.${alternationHint}`,
     });
   }
 

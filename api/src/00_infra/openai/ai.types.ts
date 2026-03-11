@@ -12,6 +12,8 @@ export interface NarrationHistoryEntry {
     playerName: string;
     avatar: string;
     choice: string;
+    /** Micro-situation vécue par ce joueur (uniquement pour les étapes individuelles) */
+    situation?: string;
   }[];
 }
 
