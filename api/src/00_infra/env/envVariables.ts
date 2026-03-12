@@ -8,10 +8,13 @@ const EnvVariablesSchema = z.object({
   FRONTEND_URL: z.string().default("http://localhost:3000"),
   /** Clé secrète OpenAI — ne jamais commiter */
   OPENAI_API_KEY: z.string().min(1),
+  /** Clé admin OpenAI (org-level) pour l'API usage — optionnelle */
+  OPENAI_ADMIN_KEY: z.string().optional(),
 });
 const parsed = EnvVariablesSchema.parse({
   FRONTEND_URL: process.env.FRONTEND_URL,
   OPENAI_API_KEY: process.env.OPENAI_API_KEY,
+  OPENAI_ADMIN_KEY: process.env.OPENAI_ADMIN_KEY,
 });
 
 const toOrigin = (s: string) => s.trim().replace(/\/$/, "");

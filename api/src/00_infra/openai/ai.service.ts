@@ -6,6 +6,7 @@ import type {
   GenerateNarrationInput,
   PlayerSuggestion,
 } from "./ai.types.js";
+import { recordUsage } from "./usage.tracker.js";
 import { AVATARS } from "@/types/avatar.js";
 import type { AvatarId } from "@/types/avatar.js";
 
@@ -295,6 +296,15 @@ async function callOpenAi(
     const content = response.choices[0]?.message?.content;
     if (!content) throw new Error("[AiService] Empty response from OpenAI");
 
+    if (response.usage) {
+      recordUsage(
+        "narration",
+        response.model,
+        response.usage.prompt_tokens,
+        response.usage.completion_tokens,
+      );
+    }
+
     const raw = JSON.parse(content) as RawAiResponse;
 
     // ── Collective step ──
@@ -498,6 +508,15 @@ async function callOpenAiEpilogue(
     const content = response.choices[0]?.message?.content;
     if (!content)
       throw new Error("[AiService] Empty epilogue response from OpenAI");
+
+    if (response.usage) {
+      recordUsage(
+        "epilogue",
+        response.model,
+        response.usage.prompt_tokens,
+        response.usage.completion_tokens,
+      );
+    }
 
     const raw = JSON.parse(content) as RawEpilogueResponse;
 
