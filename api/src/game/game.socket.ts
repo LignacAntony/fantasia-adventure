@@ -2,7 +2,10 @@ import { z } from "zod";
 import type { Server, Socket } from "socket.io";
 import { gameRepository } from "./repository/game.repository.js";
 import type { User } from "@/types/user.js";
-import { generateNarration } from "@/00_infra/openai/ai.service.js";
+import {
+  generateEpilogue,
+  generateNarration,
+} from "@/00_infra/openai/ai.service.js";
 import type { NarrationHistoryEntry } from "@/00_infra/openai/ai.types.js";
 
 const playerJoinSchema = z.object({
@@ -164,14 +167,54 @@ async function generateNextStep(io: Server, gameId: string): Promise<void> {
 
     const nextStep = game.currentStep + 1;
 
-    // Game complete — no more steps to generate
+    // Game complete — generate epilogue then end
     if (nextStep > game.totalSteps) {
       game.status = "terminée";
       pendingChoices.delete(gameId);
-      io.to(gameId).emit("game:ended");
-      console.log(
-        `[Socket] Game ${gameId} completed after ${game.totalSteps} steps`,
-      );
+
+      const fullHistory = [...game.history, historyEntry];
+      const presentPlayers = getPresentPlayers(gameId);
+
+      // Show loading state to clients while epilogue generates
+      io.to(gameId).emit("game:starting", {
+        currentStep: game.totalSteps,
+        totalSteps: game.totalSteps,
+      });
+
+      console.log(`[Socket] Generating epilogue for game ${gameId}…`);
+
+      try {
+        const epilogueResult = await generateEpilogue({
+          players: presentPlayers.map((u) => ({
+            id: u.id,
+            username: u.username,
+            avatar: u.avatar,
+          })),
+          theme: game.theme,
+          totalSteps: game.totalSteps,
+          history: fullHistory,
+        });
+
+        io.to(gameId).emit("game:ended", {
+          epilogue: epilogueResult.epilogue,
+          playerSummaries: epilogueResult.playerSummaries,
+        });
+
+        console.log(
+          `[Socket] Game ${gameId} completed with epilogue after ${game.totalSteps} steps`,
+        );
+      } catch (error) {
+        console.error(
+          `[Socket] Epilogue generation failed for ${gameId}:`,
+          error,
+        );
+        // Fallback: end the game without epilogue
+        io.to(gameId).emit("game:ended", {
+          epilogue: null,
+          playerSummaries: null,
+        });
+      }
+
       return;
     }
 

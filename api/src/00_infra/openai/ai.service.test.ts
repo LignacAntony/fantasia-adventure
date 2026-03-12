@@ -1,5 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { GenerateNarrationInput } from "./ai.types.js";
+import type {
+  GenerateEpilogueInput,
+  GenerateNarrationInput,
+} from "./ai.types.js";
 
 vi.mock("./openai.client.js", () => ({
   openaiClient: {
@@ -12,7 +15,7 @@ vi.mock("./openai.client.js", () => ({
 }));
 
 import { openaiClient } from "./openai.client.js";
-import { generateNarration } from "./ai.service.js";
+import { generateEpilogue, generateNarration } from "./ai.service.js";
 
 const mockCreate = vi.mocked(openaiClient.chat.completions.create);
 
@@ -432,6 +435,202 @@ describe("generateNarration()", () => {
     await expect(generateNarration(baseInput)).rejects.toThrow(
       "Collective step but choices is null",
     );
+    expect(mockCreate).toHaveBeenCalledTimes(2);
+  });
+});
+
+// ─── generateEpilogue() ──────────────────────────────────────────────
+
+const epilogueInput: GenerateEpilogueInput = {
+  players: [
+    { id: "user-1", username: "Alice", avatar: "mage" },
+    { id: "user-2", username: "Bob", avatar: "warrior" },
+  ],
+  theme: "La forêt maudite",
+  totalSteps: 3,
+  history: [
+    {
+      stepType: "collective",
+      narration: "Le groupe pénètre dans la forêt.",
+      choices: [
+        {
+          playerId: "user-1",
+          playerName: "Alice",
+          avatar: "mage",
+          choice: "Nous avançons",
+        },
+        {
+          playerId: "user-2",
+          playerName: "Bob",
+          avatar: "warrior",
+          choice: "Nous avançons",
+        },
+      ],
+    },
+    {
+      stepType: "individual",
+      narration: "Chacun affronte sa propre épreuve.",
+      choices: [
+        {
+          playerId: "user-1",
+          playerName: "Alice",
+          avatar: "mage",
+          choice: "Lancer un sort",
+          situation: "Alice fait face à un spectre.",
+        },
+        {
+          playerId: "user-2",
+          playerName: "Bob",
+          avatar: "warrior",
+          choice: "Attaquer",
+          situation: "Bob découvre un piège.",
+        },
+      ],
+    },
+    {
+      stepType: "collective",
+      narration: "Le groupe se retrouve devant le temple.",
+      choices: [
+        {
+          playerId: "user-1",
+          playerName: "Alice",
+          avatar: "mage",
+          choice: "Nous entrons",
+        },
+        {
+          playerId: "user-2",
+          playerName: "Bob",
+          avatar: "warrior",
+          choice: "Nous entrons",
+        },
+      ],
+    },
+  ],
+};
+
+const mockEpilogueResponse = (epilogue: string) => ({
+  choices: [
+    {
+      message: {
+        content: JSON.stringify({
+          epilogue,
+          playerSummaries: [
+            {
+              playerId: "user-1",
+              summary: "Alice a sauvé le groupe grâce à sa magie.",
+            },
+            { playerId: "user-2", summary: "Bob a combattu vaillamment." },
+          ],
+        }),
+      },
+    },
+  ],
+});
+
+describe("generateEpilogue()", () => {
+  it("should return parsed epilogue and player summaries", async () => {
+    mockCreate.mockResolvedValueOnce(
+      mockEpilogueResponse(
+        "La quête est terminée. La forêt est libérée.",
+      ) as never,
+    );
+
+    const result = await generateEpilogue(epilogueInput);
+
+    expect(result.epilogue).toBe(
+      "La quête est terminée. La forêt est libérée.",
+    );
+    expect(result.playerSummaries["user-1"]).toBe(
+      "Alice a sauvé le groupe grâce à sa magie.",
+    );
+    expect(result.playerSummaries["user-2"]).toBe(
+      "Bob a combattu vaillamment.",
+    );
+  });
+
+  it("should call OpenAI with epilogue_output schema", async () => {
+    mockCreate.mockResolvedValueOnce(mockEpilogueResponse("Fin.") as never);
+
+    await generateEpilogue(epilogueInput);
+
+    expect(mockCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        response_format: expect.objectContaining({
+          type: "json_schema",
+          json_schema: expect.objectContaining({
+            name: "epilogue_output",
+            strict: true,
+          }),
+        }),
+      }),
+      expect.anything(),
+    );
+  });
+
+  it("should include full history in epilogue messages", async () => {
+    mockCreate.mockResolvedValueOnce(
+      mockEpilogueResponse("Fin de l'aventure.") as never,
+    );
+
+    await generateEpilogue(epilogueInput);
+
+    const [body] = mockCreate.mock.calls[0] as unknown as [
+      { messages: { role: string; content: string }[] },
+    ];
+    const userMessages = body.messages.filter((m) => m.role === "user");
+    const lastUserMessage = userMessages.at(-1);
+
+    // Should include final instruction
+    expect(lastUserMessage?.content).toContain("épilogue final");
+    expect(lastUserMessage?.content).toContain("bilan personnalisé");
+
+    // System prompt should mention conclusion
+    const systemMessage = body.messages.find((m) => m.role === "system");
+    expect(systemMessage?.content).toContain("épilogue");
+    expect(systemMessage?.content).toContain("La forêt maudite");
+    expect(systemMessage?.content).toContain("Alice");
+  });
+
+  it("should remap player names to IDs in summaries", async () => {
+    mockCreate.mockResolvedValueOnce({
+      choices: [
+        {
+          message: {
+            content: JSON.stringify({
+              epilogue: "Fin.",
+              playerSummaries: [
+                { playerId: "Alice", summary: "Alice a brillé." },
+                { playerId: "Bob", summary: "Bob a combattu." },
+              ],
+            }),
+          },
+        },
+      ],
+    } as never);
+
+    const result = await generateEpilogue(epilogueInput);
+
+    expect(result.playerSummaries["user-1"]).toBe("Alice a brillé.");
+    expect(result.playerSummaries["user-2"]).toBe("Bob a combattu.");
+  });
+
+  it("should retry once on failure", async () => {
+    mockCreate
+      .mockRejectedValueOnce(new Error("Network error"))
+      .mockResolvedValueOnce(mockEpilogueResponse("Fin après retry.") as never);
+
+    const result = await generateEpilogue(epilogueInput);
+
+    expect(result.epilogue).toBe("Fin après retry.");
+    expect(mockCreate).toHaveBeenCalledTimes(2);
+  });
+
+  it("should throw after all retries exhausted", async () => {
+    mockCreate
+      .mockRejectedValueOnce(new Error("Timeout"))
+      .mockRejectedValueOnce(new Error("Timeout"));
+
+    await expect(generateEpilogue(epilogueInput)).rejects.toThrow("Timeout");
     expect(mockCreate).toHaveBeenCalledTimes(2);
   });
 });
