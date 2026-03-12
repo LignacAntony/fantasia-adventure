@@ -8,7 +8,7 @@ import { Navbar } from "@/components/navbar";
 import { Button } from "@/components/ui/button";
 import { BadgeClasse } from "@/components/badge-classe";
 import { getGame } from "@/lib/api";
-import type { Game, Player, PlayerSuggestion } from "@/lib/api";
+import type { EpilogueData, Game, Player, PlayerSuggestion } from "@/lib/api";
 import type { AvatarId } from "@/lib/avatars";
 import { AVATARS } from "@/lib/avatars";
 import { Progress } from "@/components/ui/progress";
@@ -91,6 +91,8 @@ export default function GamePage() {
   const showChoicesTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
     null,
   );
+
+  const [epilogueData, setEpilogueData] = useState<EpilogueData | null>(null);
 
   // Redirect if no user
   useEffect(() => {
@@ -247,12 +249,15 @@ export default function GamePage() {
       }
     }
 
-    function onGameEnded() {
+    function onGameEnded(payload?: EpilogueData) {
       if (timerIntervalRef.current) {
         clearInterval(timerIntervalRef.current);
         timerIntervalRef.current = null;
       }
       setStepTimeLeft(null);
+      if (payload) {
+        setEpilogueData(payload);
+      }
       setGameStatus("terminée");
     }
 
@@ -362,7 +367,8 @@ export default function GamePage() {
         {gameStatus === "terminée" && (
           <EndScreen
             totalSteps={totalSteps}
-            narration={narration}
+            epilogueData={epilogueData}
+            players={players}
             onHome={() => router.push("/")}
           />
         )}
@@ -373,11 +379,13 @@ export default function GamePage() {
 
 function EndScreen({
   totalSteps,
-  narration,
+  epilogueData,
+  players,
   onHome,
 }: {
   totalSteps: number;
-  narration: string | null;
+  epilogueData: EpilogueData | null;
+  players: Player[];
   onHome: () => void;
 }) {
   return (
@@ -394,16 +402,63 @@ function EndScreen({
         </h1>
         <p className="text-sm text-white/50">
           {totalSteps} étape{totalSteps > 1 ? "s" : ""} accomplies
+          {" · "}
+          {players.length} joueur{players.length > 1 ? "s" : ""}
         </p>
       </div>
 
-      {/* Last narration as epilogue */}
-      {narration && (
+      {/* Épilogue narratif */}
+      {epilogueData?.epilogue && (
         <div className="w-full rounded-2xl border border-white/10 bg-white/5 p-6 text-left">
           <p className="text-sm font-semibold uppercase tracking-wider text-purple-400">
             Épilogue
           </p>
-          <p className="mt-3 leading-relaxed text-white/80">{narration}</p>
+          <p className="mt-3 leading-relaxed text-white/80">
+            {epilogueData.epilogue}
+          </p>
+        </div>
+      )}
+
+      {/* Bilans individuels */}
+      {epilogueData?.playerSummaries && players.length > 0 && (
+        <div className="w-full space-y-3">
+          <p className="text-sm font-semibold uppercase tracking-wider text-amber-400">
+            Bilans des aventuriers
+          </p>
+          {players.map((player) => {
+            const summary = epilogueData.playerSummaries?.[player.id];
+            const avatarData = AVATARS[player.avatar];
+            if (!summary) return null;
+            return (
+              <div
+                key={player.id}
+                className="flex items-start gap-4 rounded-xl border border-white/10 bg-white/5 p-4 text-left"
+              >
+                {/* Avatar */}
+                <div className="flex shrink-0 flex-col items-center gap-1">
+                  {avatarData ? (
+                    <BadgeClasse variant={avatarData.classe} />
+                  ) : (
+                    <div className="flex size-10 items-center justify-center rounded-full bg-purple-500/20">
+                      <User className="size-5 text-white/50" />
+                    </div>
+                  )}
+                  <span className="text-xs text-white/50">
+                    {player.username}
+                  </span>
+                </div>
+                {/* Summary */}
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium text-white/90">
+                    {avatarData?.name ?? player.avatar}
+                  </p>
+                  <p className="mt-1 text-sm leading-relaxed text-white/60">
+                    {summary}
+                  </p>
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
 

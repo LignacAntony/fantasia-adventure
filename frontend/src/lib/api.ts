@@ -10,7 +10,6 @@ export type Player = {
   avatar: AvatarId;
 };
 
-/** FAN-71: micro-situation unique + choix pour un joueur lors d'une étape individuelle */
 export type PlayerSuggestion = {
   situation: string;
   options: string[];
@@ -23,6 +22,11 @@ export type NarrationOutput =
       narration: string;
       suggestions: Record<string, PlayerSuggestion>;
     };
+
+export type EpilogueData = {
+  epilogue: string | null;
+  playerSummaries: Record<string, string> | null;
+};
 
 export type Game = {
   id: string;

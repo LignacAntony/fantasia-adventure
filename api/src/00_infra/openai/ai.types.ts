@@ -46,3 +46,17 @@ export type AiNarrationOutput =
       /** suggestions[playerId] = { situation, options } (FAN-71) */
       suggestions: Record<string, PlayerSuggestion>;
     };
+
+export interface GenerateEpilogueInput {
+  players: AiPlayer[];
+  theme: string;
+  totalSteps: number;
+  history: NarrationHistoryEntry[];
+}
+
+export interface AiEpilogueOutput {
+  /** Narration conclusive de l'aventure */
+  epilogue: string;
+  /** Bilan personnalisé par joueur (playerId → résumé) */
+  playerSummaries: Record<string, string>;
+}
