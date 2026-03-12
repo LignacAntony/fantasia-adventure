@@ -702,13 +702,16 @@ function GameScreen({
         <Progress
           value={progress}
           className={cn(
-            "h-1.5",
+            "h-1.5 bg-white/10 *:data-[slot=progress-indicator]:bg-purple-500",
             isLastStep &&
-              "animate-pulse [&>[data-slot=progress-indicator]]:bg-amber-400",
+              "animate-pulse *:data-[slot=progress-indicator]:bg-amber-400",
           )}
         />
         {stepTimeLeft !== null && stepTimeLeft > 0 && (
-          <Progress value={timerProgress} className="h-0.5 opacity-40" />
+          <Progress
+            value={timerProgress}
+            className="h-0.5 bg-white/10 *:data-[slot=progress-indicator]:bg-white/50"
+          />
         )}
       </div>
 

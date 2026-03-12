@@ -75,3 +75,42 @@ export async function joinGame(
   if (!res.ok) throw new Error("Failed to join game");
   return res.json();
 }
+
+export type TypeStats = {
+  calls: number;
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
+  costUsd: number;
+};
+
+export type LocalUsageStats = {
+  totalCalls: number;
+  totalPromptTokens: number;
+  totalCompletionTokens: number;
+  totalTokens: number;
+  estimatedCostUsd: number;
+  byType: { narration: TypeStats; epilogue: TypeStats };
+  recentCalls: {
+    timestamp: number;
+    type: "narration" | "epilogue";
+    model: string;
+    promptTokens: number;
+    completionTokens: number;
+    totalTokens: number;
+    costUsd: number;
+  }[];
+  trackingSince: number | null;
+};
+
+export type AdminUsageResponse = {
+  local: LocalUsageStats;
+  openaiUsage: unknown; // raw OpenAI org API response
+  hasAdminKey: boolean;
+};
+
+export async function getAdminUsage(): Promise<AdminUsageResponse> {
+  const res = await fetch(`${API_URL}/admin/usage`);
+  if (!res.ok) throw new Error("Failed to fetch admin usage");
+  return res.json();
+}
